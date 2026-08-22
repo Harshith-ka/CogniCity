@@ -18,6 +18,10 @@ class School(Base):
     name: Mapped[str] = mapped_column(String(200))
     school_type: Mapped[str] = mapped_column(String(50))  # elementary, high_school, university, vocational, online
     district_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("districts.id"), nullable=True)
+    # Exact sim-world placement — nullable for pre-existing/auto-generated schools that
+    # only ever had a district; a manually placed one (via Build Mode) always sets these.
+    x: Mapped[float | None] = mapped_column(Float, nullable=True)
+    y: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     capacity: Mapped[int] = mapped_column(Integer, default=200)
     enrolled: Mapped[int] = mapped_column(Integer, default=0)

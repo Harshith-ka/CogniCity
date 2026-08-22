@@ -202,6 +202,11 @@ class DisasterEngine:
                 disaster.is_active = False
                 disaster.phase = DisasterPhase.RESOLVED
                 disaster.ended_at = sim_time
+                await self.db.execute(
+                    update(EvacuationZone)
+                    .where(EvacuationZone.disaster_id == disaster.id)
+                    .values(is_active=False)
+                )
                 log.info("disaster_resolved", name=disaster.name, casualties=disaster.casualties)
 
             profile = disaster.parameters or {}

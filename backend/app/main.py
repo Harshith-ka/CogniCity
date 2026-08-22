@@ -28,6 +28,10 @@ from backend.app.api import environment as api_environment
 from backend.app.api import infrastructure as api_infrastructure
 from backend.app.api import tourism as api_tourism
 from backend.app.api import weather as api_weather
+from backend.app.api import agent_eval as api_agent_eval
+from backend.app.api import twin_platform as api_twin_platform
+from backend.app.api import auth as api_auth
+from backend.app.api import admin as api_admin
 from backend.app.api.routes import (
     simulation, citizens, events, analytics, economy, city,
     websocket, communication, traffic, government, relationships,
@@ -49,6 +53,13 @@ async def lifespan(app: FastAPI):
 
     async with db_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        # create_all only creates whole new tables — it never alters an existing one, so
+        # the x/y columns added to Hospital/School/PoliceUnit for exact Build Mode
+        # placement need an explicit, idempotent ALTER TABLE (no Alembic in this project).
+        from sqlalchemy import text
+        for table in ("hospitals", "schools", "police_units"):
+            await conn.execute(text(f'ALTER TABLE {table} ADD COLUMN IF NOT EXISTS x DOUBLE PRECISION'))
+            await conn.execute(text(f'ALTER TABLE {table} ADD COLUMN IF NOT EXISTS y DOUBLE PRECISION'))
 
     async with async_session() as db:
         from sqlalchemy import select
@@ -74,6 +85,26 @@ async def lifespan(app: FastAPI):
         sim_engine = SimulationEngine(db, time_scale=settings.simulation_time_scale)
         set_simulation_engine(sim_engine)
         app.state.simulation_engine = sim_engine
+
+    from backend.app.twin_platform.registry import register_all
+    register_all()
+
+    async with async_session() as db:
+        from sqlalchemy import select
+        from backend.app.models.auth import PlatformUser, UserRole
+        from backend.app.auth.security import hash_password
+
+        result = await db.execute(select(PlatformUser).where(PlatformUser.role == UserRole.SUPER_ADMIN))
+        if result.scalar_one_or_none() is None:
+            db.add(PlatformUser(
+                email=settings.initial_admin_email.lower(),
+                hashed_password=hash_password(settings.initial_admin_password),
+                name="Platform Admin",
+                role=UserRole.SUPER_ADMIN,
+                organization_id=None,
+            ))
+            await db.commit()
+            log.info("seeded_super_admin", email=settings.initial_admin_email)
 
     log.info("app_ready")
     yield
@@ -139,6 +170,10 @@ app.include_router(api_environment.router)
 app.include_router(api_demographics.router)
 app.include_router(api_infrastructure.router)
 app.include_router(api_tourism.router)
+app.include_router(api_twin_platform.router)
+app.include_router(api_auth.router)
+app.include_router(api_admin.router)
+app.include_router(api_agent_eval.router)
 
 # WebSocket
 app.include_router(websocket.router)
@@ -165,4 +200,16 @@ STATIC_DIR = Path(__file__).parent / "static"
 
 @app.get("/city3d")
 async def city_3d_view():
-    return FileResponse(STATIC_DIR / "city3d.html")
+    # This view gets iterated on constantly during development; FileResponse alone lets
+    # browsers cache it heuristically (no explicit Cache-Control), which has repeatedly
+    # meant a real fix landing here didn't visibly do anything until a hard refresh —
+    # confusing and hard to distinguish from the fix actually failing. Force no caching.
+    return FileResponse(
+        STATIC_DIR / "city3d.html",
+        headers={"Cache-Control": "no-store, no-cache, must-revalidate", "Pragma": "no-cache"},
+    )
+
+
+@app.get("/dashboard")
+async def dashboard_view():
+    return FileResponse(STATIC_DIR / "dashboard.html")

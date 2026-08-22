@@ -426,3 +426,80 @@ async def grow_city(db: AsyncSession, additional_population: int, seed: int = 43
 
     log.info("city_grown", additional_population=additional_population, **stats)
     return {"new_citizens": citizens, **stats}
+
+
+# New districts placed clearly outside the original 8's footprint (which spans roughly
+# x:[-1500,2000], y:[-1500,1500]) — this actually grows the city's map, rather than
+# just packing more buildings into the same area the way grow_city's residential
+# extensions do.
+NEW_DISTRICTS = [
+    {"name": "Riverside Heights", "center_x": -2300, "center_y": -800, "radius": 550, "wealth": 0.65, "safety": 0.75},
+    {"name": "Tech Park", "center_x": 2700, "center_y": -300, "radius": 500, "wealth": 0.75, "safety": 0.65},
+    {"name": "Old Quarter", "center_x": -600, "center_y": 2400, "radius": 500, "wealth": 0.4, "safety": 0.5},
+    {"name": "Sunset Hills", "center_x": -2400, "center_y": 1700, "radius": 550, "wealth": 0.85, "safety": 0.9},
+]
+
+
+async def expand_city(db: AsyncSession, seed: int = 44) -> dict:
+    """Grow the city's physical footprint with brand-new districts (not just denser
+    existing ones), each seeded with a starter set of buildings the same way
+    generate_city seeds the original 8 — non-destructive, nothing existing is touched
+    or removed. Call grow_city afterward to populate them (and densify existing
+    districts) with actual residents."""
+    from sqlalchemy import select
+
+    random.seed(seed)
+
+    existing_result = await db.execute(select(District.name))
+    existing_names = {n for (n,) in existing_result.all()}
+    to_add = [d for d in NEW_DISTRICTS if d["name"] not in existing_names]
+
+    stats = {"districts": 0, "locations": 0, "buildings": 0}
+    db_districts: list[District] = []
+    for d in to_add:
+        district = District(
+            name=d["name"], center_x=d["center_x"], center_y=d["center_y"],
+            radius=d["radius"], wealth_index=d["wealth"], safety_index=d["safety"],
+        )
+        db.add(district)
+        db_districts.append(district)
+        stats["districts"] += 1
+    await db.flush()
+
+    building_map = {
+        LocationType.RESIDENTIAL: BuildingType.APARTMENT,
+        LocationType.COMMERCIAL: BuildingType.SHOP,
+        LocationType.ENTERTAINMENT: BuildingType.RESTAURANT,
+    }
+    for district in db_districts:
+        loc_types = [(LocationType.RESIDENTIAL, 6), (LocationType.COMMERCIAL, 3), (LocationType.ENTERTAINMENT, 2)]
+        for loc_type, count in loc_types:
+            for i in range(count):
+                offset_x = random.uniform(-district.radius, district.radius) * 0.8
+                offset_y = random.uniform(-district.radius, district.radius) * 0.8
+                loc = Location(
+                    name=f"{district.name} {loc_type.value.title()} {i + 1}",
+                    location_type=loc_type,
+                    district_id=district.id,
+                    x=district.center_x + offset_x,
+                    y=district.center_y + offset_y,
+                    capacity=random.randint(20, 200),
+                )
+                db.add(loc)
+                stats["locations"] += 1
+
+                building = Building(
+                    name=f"{loc.name} Building",
+                    building_type=building_map.get(loc_type, BuildingType.OFFICE),
+                    location=loc,
+                    floors=random.randint(1, 15),
+                    rent_cost=random.uniform(300, 2000),
+                )
+                db.add(building)
+                stats["buildings"] += 1
+
+    await db.flush()
+    await db.commit()
+
+    log.info("city_expanded", **stats)
+    return {"new_districts": [d.name for d in db_districts], **stats}

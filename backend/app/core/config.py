@@ -37,6 +37,15 @@ class Settings(BaseSettings):
 
     random_seed: int = 42
 
+    # Admin portal auth (Phase 1 of the multi-tenant platform plan). jwt_secret_key
+    # MUST be overridden via env var outside local dev — the default here is only safe
+    # because this is a single local deployment with no real tenants yet.
+    jwt_secret_key: str = "dev-only-insecure-secret-change-before-any-real-deployment"
+    jwt_algorithm: str = "HS256"
+    jwt_expire_minutes: int = 60 * 24  # 24h session
+    initial_admin_email: str = "admin@cognicity.local"
+    initial_admin_password: str = "changeme123"
+
     model_config = {"env_file": ".env", "extra": "ignore"}
 
 

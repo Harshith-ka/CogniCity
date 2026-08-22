@@ -32,205 +32,165 @@ st.set_page_config(
 )
 
 # ══════════════════════════════════════════════════════════════════════
-# Custom CSS — premium dark palette
+# Custom CSS — COGNICITY_OS Cyber-Tactical Defense Aesthetic
 # ══════════════════════════════════════════════════════════════════════
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap');
 
     :root {
-        --bg-deep: #0a0b10;
-        --bg-surface: #14161f;
-        --border-soft: rgba(255,255,255,0.08);
-        --text-primary: #eceef5;
-        --text-muted: #9498ab;
-        --accent-indigo: #7c6cf6;
-        --accent-blue: #5b8def;
-        --accent-green: #2dd4a7;
-        --accent-amber: #f0a83c;
-        --accent-rose: #f0556f;
-        --accent-violet: #a78bfa;
-        --accent-teal: #2dd4bf;
-        --accent-gold: #e8b94d;
+        --bg-deep: #06070a;
+        --bg-surface: #0b0d13;
+        --border-soft: #1c2230;
+        --cyan-primary: #00e5ff;
+        --cyan-glow: rgba(0, 229, 255, 0.45);
+        --orange-primary: #ff6600;
+        --orange-glow: rgba(255, 102, 0, 0.5);
+        --text-primary: #edf2f7;
+        --text-muted: #718096;
+        --accent-indigo: #00e5ff;
+        --accent-blue: #00e5ff;
+        --accent-green: #00e676;
+        --accent-amber: #ff6600;
+        --accent-rose: #ff3366;
+        --accent-violet: #00e5ff;
+        --accent-teal: #00e5ff;
+        --accent-gold: #ff6600;
     }
 
     html, body, [class*="css"], .stMarkdown, .stText, p, span, div, label {
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        font-family: 'JetBrains Mono', monospace;
     }
-    h1, h2, h3, h4 { font-family: 'Sora', sans-serif; }
+    h1, h2, h3, h4, .hero-header h1 { font-family: 'Chakra Petch', sans-serif !important; letter-spacing: 0.5px; }
 
     .stApp {
-        background:
-            radial-gradient(ellipse 900px 500px at 15% -10%, rgba(124,108,246,0.10), transparent 55%),
-            radial-gradient(ellipse 700px 400px at 100% 0%, rgba(232,185,77,0.06), transparent 50%),
-            var(--bg-deep);
+        background-color: var(--bg-deep);
+        background-image: 
+            linear-gradient(rgba(0, 229, 255, 0.025) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(0, 229, 255, 0.025) 1px, transparent 1px);
+        background-size: 32px 32px;
     }
 
-    .block-container { padding-top: 1.5rem; padding-bottom: 1rem; }
+    .block-container { padding-top: 1.2rem; padding-bottom: 1rem; }
 
     /* Hero header */
     .hero-header {
-        background: linear-gradient(135deg, #12131c 0%, #191b2c 55%, #1f1436 100%);
-        border: 1px solid var(--border-soft);
+        background: #0b0d13;
+        border: 1px solid #1c2230;
+        border-left: 4px solid var(--cyan-primary);
         color: var(--text-primary);
-        padding: 1.3rem 1.9rem;
-        border-radius: 16px;
-        margin-bottom: 1.4rem;
+        padding: 1rem 1.6rem;
+        border-radius: 4px;
+        margin-bottom: 1.2rem;
         display: flex;
         align-items: center;
         justify-content: space-between;
-        box-shadow: 0 8px 30px rgba(0,0,0,0.35);
+        box-shadow: 0 4px 20px rgba(0,0,0,0.6);
         position: relative;
-        overflow: hidden;
     }
-    .hero-header::before {
-        content: "";
-        position: absolute; inset: 0;
-        background: radial-gradient(circle at 92% -20%, rgba(124,108,246,0.28), transparent 55%);
-        pointer-events: none;
-    }
-    .hero-header h1 { margin: 0; font-size: 1.7rem; font-weight: 700; letter-spacing: -0.01em; }
-    .hero-header .subtitle { opacity: 0.6; font-size: 0.85rem; margin-top: 3px; font-weight: 400; }
+    .hero-header h1 { margin: 0; font-size: 1.6rem; font-weight: 800; color: #fff; letter-spacing: 1px; }
+    .hero-header .subtitle { opacity: 0.7; font-size: 0.78rem; margin-top: 2px; color: var(--cyan-primary); font-weight: 700; }
     .hero-badge {
-        background: linear-gradient(135deg, var(--accent-gold), #c9922f);
-        color: #1a1206;
-        padding: 5px 14px;
-        border-radius: 20px;
+        background: var(--orange-primary);
+        color: #000;
+        padding: 4px 12px;
+        border-radius: 2px;
         font-size: 0.72rem;
-        font-weight: 700;
-        letter-spacing: 0.6px;
-        box-shadow: 0 2px 12px rgba(232,185,77,0.35);
-        position: relative;
-        z-index: 1;
+        font-weight: 800;
+        letter-spacing: 1px;
+        box-shadow: 0 0 12px var(--orange-glow);
     }
 
-    /* Status cards */
+    /* Tactical Status cards */
     .status-card {
-        border-radius: 14px;
-        padding: 1rem 1.1rem;
+        border-radius: 4px;
+        padding: 0.85rem 1rem;
         text-align: center;
-        margin-bottom: 0.6rem;
-        background: rgba(255,255,255,0.035);
-        backdrop-filter: blur(10px);
-        transition: transform 0.16s ease, box-shadow 0.16s ease;
+        margin-bottom: 0.5rem;
+        background: #0f121a;
+        border: 1px solid #1c2230;
+        position: relative;
+        transition: transform 0.12s ease;
     }
-    .status-card:hover { transform: translateY(-2px); box-shadow: 0 10px 26px rgba(0,0,0,0.32); }
-    .status-card .label { font-size: 0.67rem; text-transform: uppercase; letter-spacing: 1.1px; opacity: 0.58; font-weight: 600; color: var(--text-muted); }
-    .status-card .value { font-size: 1.55rem; font-weight: 700; margin: 5px 0; font-family: 'Sora', sans-serif; color: var(--text-primary); }
-    .status-card .delta { font-size: 0.72rem; opacity: 0.75; }
+    .status-card::before {
+        content: "";
+        position: absolute; top: -1px; left: -1px;
+        width: 6px; height: 6px;
+        border-top: 2px solid var(--cyan-primary);
+        border-left: 2px solid var(--cyan-primary);
+    }
+    .status-card::after {
+        content: "";
+        position: absolute; bottom: -1px; right: -1px;
+        width: 6px; height: 6px;
+        border-bottom: 2px solid var(--cyan-primary);
+        border-right: 2px solid var(--cyan-primary);
+    }
+    .status-card:hover { transform: translateY(-2px); border-color: var(--cyan-primary); }
+    .status-card .label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1px; font-weight: 700; color: var(--text-muted); }
+    .status-card .value { font-size: 1.6rem; font-weight: 800; margin: 4px 0; font-family: 'Chakra Petch', sans-serif; color: #fff; }
+    .status-card .delta { font-size: 0.7rem; color: var(--cyan-primary); font-weight: 700; }
 
-    .card-blue   { border: 1px solid rgba(91,141,239,0.35); }
-    .card-blue .value { color: var(--accent-blue); }
-    .card-green  { border: 1px solid rgba(45,212,167,0.35); }
-    .card-green .value { color: var(--accent-green); }
-    .card-orange { border: 1px solid rgba(240,168,60,0.35); }
-    .card-orange .value { color: var(--accent-amber); }
-    .card-red    { border: 1px solid rgba(240,85,111,0.35); }
-    .card-red .value { color: var(--accent-rose); }
-    .card-purple { border: 1px solid rgba(167,139,250,0.35); }
-    .card-purple .value { color: var(--accent-violet); }
-    .card-teal   { border: 1px solid rgba(45,212,191,0.35); }
-    .card-teal .value { color: var(--accent-teal); }
+    .card-blue   { border-color: rgba(0, 229, 255, 0.4); }
+    .card-blue .value { color: var(--cyan-primary); }
+    .card-green  { border-color: rgba(0, 230, 118, 0.4); }
+    .card-green .value { color: #00e676; }
+    .card-orange { border-color: rgba(255, 102, 0, 0.4); }
+    .card-orange .value { color: var(--orange-primary); }
+    .card-red    { border-color: rgba(255, 51, 102, 0.4); }
+    .card-red .value { color: #ff3366; }
+    .card-purple { border-color: rgba(0, 229, 255, 0.4); }
+    .card-purple .value { color: var(--cyan-primary); }
+    .card-teal   { border-color: rgba(0, 229, 255, 0.4); }
+    .card-teal .value { color: var(--cyan-primary); }
 
     /* Section headers */
     .section-header {
         display: flex;
         align-items: center;
-        gap: 10px;
-        margin: 1.4rem 0 0.7rem 0;
-        padding-bottom: 8px;
+        gap: 8px;
+        margin: 1.2rem 0 0.6rem 0;
+        padding-bottom: 6px;
         border-bottom: 1px solid var(--border-soft);
-        position: relative;
     }
-    .section-header::after {
-        content: "";
-        position: absolute; left: 0; bottom: -1px;
-        width: 46px; height: 2px;
-        background: linear-gradient(90deg, var(--accent-indigo), transparent);
-    }
-    .section-header .icon { font-size: 1.15rem; }
-    .section-header h3 { margin: 0; font-size: 1.05rem; font-weight: 700; letter-spacing: -0.01em; color: var(--text-primary); }
+    .section-header .icon { font-size: 1.1rem; }
+    .section-header h3 { margin: 0; font-size: 1rem; font-weight: 800; letter-spacing: 0.5px; color: var(--cyan-primary); font-family: 'Chakra Petch', sans-serif; }
 
     /* Sidebar styling */
     section[data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #0d0e16 0%, #14121f 100%);
-        border-right: 1px solid var(--border-soft);
-    }
-    section[data-testid="stSidebar"] .stMarkdown { color: #c7c9d9; }
-
-    /* Status indicator dot */
-    .status-dot {
-        display: inline-block;
-        width: 10px;
-        height: 10px;
-        border-radius: 50%;
-        margin-right: 6px;
-    }
-    .dot-running { background: var(--accent-green); box-shadow: 0 0 8px rgba(45,212,167,0.65); }
-    .dot-paused { background: var(--accent-amber); box-shadow: 0 0 8px rgba(240,168,60,0.65); }
-    .dot-stopped { background: var(--accent-rose); box-shadow: 0 0 8px rgba(240,85,111,0.65); }
-
-    /* Data table styling */
-    .stDataFrame { border-radius: 12px; overflow: hidden; border: 1px solid var(--border-soft); }
-
-    /* Alert card */
-    .alert-card {
-        border-left: 3px solid;
-        padding: 0.75rem 1.05rem;
-        border-radius: 0 10px 10px 0;
-        margin: 0.45rem 0;
-        background: rgba(255,255,255,0.03);
-    }
-    .alert-critical { border-color: var(--accent-rose); }
-    .alert-high { border-color: var(--accent-amber); }
-    .alert-medium { border-color: var(--accent-gold); }
-    .alert-low { border-color: var(--accent-green); }
-
-    /* Metric ring */
-    .metric-ring {
-        width: 80px; height: 80px;
-        border-radius: 50%;
-        display: flex; align-items: center; justify-content: center;
-        font-size: 1.1rem; font-weight: 700;
-        margin: 0 auto 4px auto;
+        background: #080a0e;
+        border-right: 1px solid #1c2230;
     }
 
     /* Tab styling */
-    .stTabs [data-baseweb="tab-list"] { gap: 4px; border-bottom: 1px solid var(--border-soft); }
+    .stTabs [data-baseweb="tab-list"] { gap: 3px; border-bottom: 1px solid #1c2230; }
     .stTabs [data-baseweb="tab"] {
-        padding: 8px 14px;
-        font-size: 0.82rem;
-        font-weight: 500;
-        border-radius: 8px 8px 0 0;
-        color: var(--text-muted);
+        padding: 6px 12px;
+        font-size: 0.74rem;
+        font-weight: 700;
+        border-radius: 2px;
+        color: #718096;
+        background: #0b0d13;
+        border: 1px solid transparent;
     }
     .stTabs [aria-selected="true"] {
-        color: var(--text-primary) !important;
-        background: rgba(124,108,246,0.14);
+        color: #000 !important;
+        background: var(--cyan-primary) !important;
+        font-weight: 800 !important;
+        box-shadow: 0 0 10px var(--cyan-glow);
     }
-
-    /* Feed card */
-    .feed-card {
-        background: rgba(255,255,255,0.035);
-        backdrop-filter: blur(8px);
-        border-radius: 12px;
-        padding: 0.85rem 1.05rem;
-        margin: 0.45rem 0;
-        border: 1px solid var(--border-soft);
-        transition: border-color 0.15s ease;
-    }
-    .feed-card:hover { border-color: rgba(124,108,246,0.4); }
-    .feed-card .author { font-weight: 600; font-size: 0.86rem; color: var(--text-primary); }
-    .feed-card .content { margin: 4px 0; color: #d3d5e2; }
-    .feed-card .meta { font-size: 0.73rem; opacity: 0.55; color: var(--text-muted); }
 
     /* Buttons */
     .stButton button {
-        border-radius: 9px;
-        border: 1px solid var(--border-soft);
-        transition: transform 0.12s ease, border-color 0.12s ease;
+        border-radius: 2px;
+        border: 1px solid #2d3748;
+        background: #0f121a;
+        color: #fff;
+        font-family: 'JetBrains Mono', monospace;
+        font-weight: 700;
+        font-size: 0.76rem;
     }
-    .stButton button:hover { border-color: var(--accent-indigo); transform: translateY(-1px); }
+    .stButton button:hover { border-color: var(--cyan-primary); color: var(--cyan-primary); box-shadow: 0 0 10px var(--cyan-glow); }
 </style>
 """, unsafe_allow_html=True)
 
@@ -519,8 +479,117 @@ def render_live_city_map(citizens: list, districts: list, conversations: list, h
 
 
 # ══════════════════════════════════════════════════════════════════════
-# Sidebar
+# Twin Environment Marketplace — a modal, not a tab. The tab row is already
+# overloaded; this gets its own dedicated surface reachable from anywhere.
 # ══════════════════════════════════════════════════════════════════════
+@st.dialog("🌐 Twin Environment Marketplace", width="large")
+def show_marketplace_dialog():
+    environments = api_get("/api/twin-platform/environments")
+    if not environments:
+        st.error("Couldn't reach the Twin Platform catalog. Is the backend up?")
+        return
+
+    selected_key = st.session_state.get("marketplace_selected_env")
+
+    if not selected_key:
+        st.caption("Browse the environment catalog. Pick one to configure and run it.")
+        cols = st.columns(2)
+        for i, env in enumerate(environments):
+            with cols[i % 2]:
+                with st.container(border=True):
+                    st.markdown(f"##### {env['icon']} {env['name']}")
+                    st.caption(f"{env['category']} • entities: {', '.join(env['entity_types'])}")
+                    st.write(env["description"])
+                    st.caption(f"Scenarios: {', '.join(env['scenario_examples'])}")
+                    if st.button("Configure & Run →", key=f"mkt_pick_{env['key']}", use_container_width=True):
+                        st.session_state["marketplace_selected_env"] = env["key"]
+                        st.rerun()
+        return
+
+    env = next((e for e in environments if e["key"] == selected_key), None)
+    if not env:
+        st.session_state["marketplace_selected_env"] = None
+        st.rerun()
+        return
+
+    if st.button("← Back to catalog"):
+        st.session_state["marketplace_selected_env"] = None
+        st.session_state.pop("marketplace_result", None)
+        st.rerun()
+
+    st.markdown(f"### {env['icon']} {env['name']}")
+    st.caption(env["description"])
+
+    is_city = env["key"] == "city"
+    if is_city:
+        st.warning(
+            "This wraps the **live production city simulation** — a real tick can take "
+            "over a minute with LLM-backed decisions. Runs here are capped at 1 tick."
+        )
+
+    c1, c2 = st.columns(2)
+    with c1:
+        ticks = st.number_input("Ticks to run", min_value=1, max_value=1 if is_city else 200, value=1 if is_city else 15)
+        initial_agents = st.number_input("Extra agents to spawn (on top of defaults)", min_value=0, max_value=500, value=0)
+    with c2:
+        event_options = ["(none)"] + env["scenario_examples"]
+        event_type = st.selectbox("Trigger a scenario mid-run", event_options)
+        event_params_raw = st.text_input(
+            "Scenario params (JSON, optional)",
+            value="", placeholder='e.g. {"reduction_pct": 20} or {"count": 10}',
+        )
+
+    if st.button("🚀 Run Simulation", type="primary", use_container_width=True):
+        import json as _json
+        try:
+            event_params = _json.loads(event_params_raw) if event_params_raw.strip() else {}
+        except ValueError:
+            st.error("Scenario params must be valid JSON (or left blank).")
+            event_params = None
+
+        if event_params is not None:
+            spinner_msg = (
+                f"Running {env['name']}... a live city tick can take a minute or more"
+                if is_city else f"Running {env['name']}..."
+            )
+            with st.spinner(spinner_msg):
+                payload = {
+                    "ticks": int(ticks),
+                    "initial_agents": int(initial_agents),
+                    "event_type": None if event_type == "(none)" else event_type,
+                    "event_params": event_params,
+                }
+                try:
+                    resp = httpx.post(
+                        f"{API_BASE}/api/twin-platform/environments/{env['key']}/run",
+                        json=payload,
+                        timeout=180 if is_city else 30,
+                    )
+                    resp.raise_for_status()
+                    st.session_state["marketplace_result"] = resp.json()
+                except Exception as err:
+                    st.error(f"Run failed: {err}")
+                    st.session_state.pop("marketplace_result", None)
+
+    result = st.session_state.get("marketplace_result")
+    if result:
+        st.markdown("---")
+        st.markdown(f"##### Result — ran {result.get('ticks_run')} tick(s)")
+        if result.get("capped"):
+            st.caption(f"(capped from the requested {result.get('ticks_requested')} ticks)")
+        if result.get("triggered_event"):
+            st.info(f"Scenario triggered: {result['triggered_event']}")
+
+        metrics = result.get("final_metrics") or {}
+        if metrics:
+            mcols = st.columns(3)
+            for i, (k, v) in enumerate(metrics.items()):
+                with mcols[i % 3]:
+                    metric_card(k.replace("_", " ").title(), f"{v}", "teal")
+        else:
+            st.caption("No metrics returned.")
+
+
 with st.sidebar:
     status = api_get("/api/simulation/status")
     sim_status = status.get("status", "stopped") if status else "offline"
@@ -556,6 +625,19 @@ with st.sidebar:
         f'🏙️ Open 3D City View ↗</a>',
         unsafe_allow_html=True,
     )
+
+    st.markdown(
+        f'<div style="background:linear-gradient(135deg, rgba(99,102,241,0.22), rgba(16,185,129,0.18));'
+        f'border:1px solid rgba(99,102,241,0.45);border-radius:10px;padding:9px 12px;'
+        f'margin:0.4rem 0;text-align:center;">'
+        f'<div style="font-weight:700;font-size:0.84rem;color:#eceef5;">🧪 AI Agent Testing Sandbox</div>'
+        f'<div style="font-size:0.72rem;color:#a5b4fc;margin-top:2px;">Click Tab #2 (AI Sandbox) at top ↗</div>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
+    if st.button("🌐 Twin Environment Marketplace", use_container_width=True):
+        show_marketplace_dialog()
 
     st.markdown("---")
     st.markdown("##### Controls")
@@ -706,14 +788,14 @@ st.markdown(
 # Tabs
 # ══════════════════════════════════════════════════════════════════════
 (
-    tab_overview, tab_live, tab_citizens, tab_econ, tab_traffic, tab_comms,
+    tab_overview, tab_sandbox, tab_live, tab_citizens, tab_econ, tab_traffic, tab_comms,
     tab_gov, tab_social, tab_map, tab_events,
     tab_disasters, tab_pandemic, tab_elections, tab_social_media,
     tab_advisor, tab_graph,
     tab_weather, tab_crime, tab_health, tab_edu, tab_housing, tab_news,
     tab_culture, tab_environment, tab_demographics, tab_infra, tab_tourism,
 ) = st.tabs([
-    "📊 Overview", "🎬 Live Feed", "👥 Citizens", "💰 Economy", "🚗 Traffic",
+    "📊 Overview", "🧪 AI Sandbox", "🎬 Live Feed", "👥 Citizens", "💰 Economy", "🚗 Traffic",
     "💬 Comms", "🏛 Gov", "🤝 Social", "🗺️ Map", "⚡ Events",
     "🌋 Disasters", "🦠 Pandemic", "🗳 Elections", "📱 Media",
     "🤖 AI Advisor", "🔗 Graph",
@@ -801,6 +883,211 @@ with tab_overview:
             edu = population.get("by_education", {})
             if edu:
                 st.bar_chart(edu, height=200)
+
+# ═══════════════════════════════════════
+# TAB: AI Agent Testing Sandbox
+# ═══════════════════════════════════════
+with tab_sandbox:
+    section_header("🧪", "Universal AI Agent Testing Sandbox")
+    st.caption("Safely evaluate candidate AI/ML models against isolated in-memory synthetic human cohorts before real-world deployment.")
+
+    c_config, c_pop = st.columns([1.1, 0.9])
+
+    with c_config:
+        st.markdown("##### 🔌 1. Model & Target Feature Schema")
+        agent_name = st.text_input("Agent / Model Name", value="CardioRisk-Predictor v3.2")
+        
+        domain_preset = st.selectbox(
+            "Target Domain / Feature Schema",
+            ["cardiology_uci", "credit_lending", "real_estate_housing", "ecommerce_recsys"],
+            format_func=lambda x: {
+                "cardiology_uci": "❤️ Cardiology Biomarkers (UCI 13-Feature Schema: trestbps, chol, thalach, oldpeak...)",
+                "credit_lending": "💳 Credit & Underwriting (DTI, Credit Score, Savings, Loan Amount...)",
+                "real_estate_housing": "🏠 Housing & Real Estate (Budget, Downpayment, Preferred Sqft...)",
+                "ecommerce_recsys": "🛒 E-Commerce & Consumer Behavior (Income, Lifestyle, Price Sensitivity...)",
+            }[x],
+        )
+
+        protocol = st.selectbox(
+            "Connection Protocol",
+            ["mock_benchmark", "rest_webhook", "openai_chat"],
+            format_func=lambda x: {
+                "mock_benchmark": "⚡ Built-in Correlated Benchmark Simulator (Demo)",
+                "rest_webhook": "🌐 REST API Webhook (POST /predict)",
+                "openai_chat": "🤖 OpenAI / LLM Chat Completion Endpoint",
+            }[x],
+        )
+
+        endpoint_url = None
+        api_key = None
+        prompt_tmpl = None
+
+        if protocol == "rest_webhook":
+            endpoint_url = st.text_input("Webhook Endpoint URL", value="http://host.docker.internal:9000/predict")
+            st.caption(
+                "⚠️ Testing a model running on **this same machine**? Use `host.docker.internal` "
+                "instead of `localhost` — the backend runs in a container, so `localhost` there means "
+                "the container itself, not your machine. Using `localhost` fails silently with a "
+                "network error on every citizen (and a misleadingly low robustness score)."
+            )
+            api_key = st.text_input("API Key / Bearer Token (Optional)", type="password")
+        elif protocol == "openai_chat":
+            endpoint_url = st.text_input("OpenAI-Compatible Base URL", value="https://api.openai.com/v1/chat/completions")
+            st.caption(
+                "⚠️ Pointing this at a **locally-hosted** OpenAI-compatible server (Ollama, vLLM, "
+                "LM Studio, text-generation-webui, etc.) on this same machine? Use `host.docker.internal` "
+                "instead of `localhost` in the URL — e.g. `http://host.docker.internal:11434/v1/chat/completions`. "
+                "The backend runs in a container, so `localhost` there means the container itself, not "
+                "your machine, and every request will silently fail with a network error."
+            )
+            api_key = st.text_input("API Key", type="password")
+            prompt_tmpl = st.text_area("Citizen Evaluation Prompt Template", value="Evaluate this correlated human profile and return risk assessment & recommendation: {profile}")
+
+        c_mode, c_hor = st.columns(2)
+        with c_mode:
+            interaction_mode = st.selectbox(
+                "Interaction Mode",
+                ["one_shot", "longitudinal", "conversational"],
+                format_func=lambda x: {
+                    "one_shot": "🎯 1-Shot Decision",
+                    "longitudinal": "⏳ Multi-Month Drift",
+                    "conversational": "💬 Synthetic Chat",
+                }[x],
+            )
+        with c_hor:
+            horizon_days = st.selectbox("Simulation Horizon", [30, 90, 180, 365], index=1, format_func=lambda x: f"{x} Days")
+
+    with c_pop:
+        st.markdown("##### 👥 2. Correlated Population Generator")
+        cohort = st.selectbox(
+            "Demographic Population Cohort",
+            [
+                "balanced_general",
+                "senior_population",
+                "low_income_high_debt",
+                "youth_tech_savvy",
+                "high_stress_chronic",
+                "adversarial_edge_cases",
+            ],
+            format_func=lambda x: {
+                "balanced_general": "🌆 Balanced General Metro Demographics",
+                "senior_population": "👵 Senior Citizens (Aged 60+, Chronic Healthcare)",
+                "low_income_high_debt": "💳 Low-Income & High-DTI Borrowers",
+                "youth_tech_savvy": "📱 Youth & Tech-Savvy Digital Natives",
+                "high_stress_chronic": "🩺 Elevated Stress & Chronic Condition Cohort",
+                "adversarial_edge_cases": "🔥 Adversarial Edge-Case Stress Cohort",
+            }[x],
+        )
+
+        sample_size = st.slider("Synthetic Human Sample Size", min_value=50, max_value=5000, value=500, step=50)
+        adversarial_intensity = st.slider("Adversarial Perturbation Intensity", min_value=0.0, max_value=1.0, value=0.25, step=0.05)
+
+        st.info("🧠 **Causal Bayesian Generator**: All features are generated using multi-layer joint distributions preserving cross-variable physiology and financial correlations.")
+
+    st.write("")
+    if st.button("🚀 Run Agent Behavioral Evaluation & Drift Simulation", use_container_width=True, type="primary"):
+        with st.spinner(f"Synthesizing {sample_size:,} correlated humans ({domain_preset}) and evaluating agent '{agent_name}'..."):
+            req_payload = {
+                "agent_name": agent_name,
+                "domain_preset": domain_preset,
+                "protocol": protocol,
+                "endpoint_url": endpoint_url,
+                "api_key": api_key,
+                "interaction_mode": interaction_mode,
+                "prompt_template": prompt_tmpl,
+                "cohort_distribution": cohort,
+                "sample_size": sample_size,
+                "adversarial_intensity": adversarial_intensity,
+                "simulation_horizon_days": horizon_days,
+            }
+            scorecard = api_post("/api/eval/run-test", req_payload)
+
+            if scorecard:
+                st.session_state["latest_scorecard"] = scorecard
+                st.success(f"Evaluation complete for '{agent_name}' across {sample_size:,} synthetic citizens!")
+
+    # Display Scorecard if available
+    latest = st.session_state.get("latest_scorecard")
+    if latest:
+        st.markdown("---")
+        st.markdown(f"### 📋 Behavioral & Longitudinal Scorecard: **{latest.get('agent_name')}**")
+        st.caption(f"Domain: `{latest.get('domain')}` • Test ID: `{latest.get('test_id')}` • Sample: {latest.get('population_size'):,} Correlated Synthetic Citizens")
+
+        # Top KPI Metrics
+        k1, k2, k3, k4 = st.columns(4)
+        with k1:
+            metric_card("Adoption / Acceptance Rate", f"{latest.get('overall_adoption_rate', 0)}%", "green" if latest.get('overall_adoption_rate', 0) > 60 else "orange")
+        with k2:
+            metric_card("Synthetic Human Trust", f"{latest.get('avg_trust_index', 0)} / 1.0", "teal")
+        with k3:
+            metric_card("Robustness Score", f"{latest.get('robustness_score', 0)}%", "purple")
+        with k4:
+            metric_card("Fairness Parity Index", f"{latest.get('fairness_index', 0)} / 1.0", "blue" if latest.get('fairness_index', 0) > 0.8 else "red")
+
+        # Summary box
+        st.info(f"**Executive Synthesis**: {latest.get('executive_summary', '')}")
+
+        # Longitudinal Trajectory Chart if available
+        long_data = latest.get("longitudinal_summary")
+        if long_data and long_data.get("timeline_snapshots"):
+            st.markdown("##### ⏳ Longitudinal State Evolution & Intervention Efficacy")
+            snapshots = long_data["timeline_snapshots"]
+            df_timeline = pd.DataFrame([{
+                "Day": s["day"],
+                "Avg Blood Pressure (mmHg)": s["avg_systolic_bp"],
+                "Avg Cholesterol (mg/dl)": s["avg_cholesterol"],
+                "Active Compliance Rate (%)": s["active_compliance_rate"],
+                "High Risk Population (%)": s["high_risk_population_pct"],
+            } for s in snapshots]).set_index("Day")
+
+            c_t1, c_t2 = st.columns(2)
+            with c_t1:
+                st.caption("HEALTH BIOMARKER TRAJECTORY (Intervention vs Fatigue)")
+                st.line_chart(df_timeline[["Avg Blood Pressure (mmHg)", "Avg Cholesterol (mg/dl)"]], height=220)
+            with c_t2:
+                st.caption("RISK REDUCTION & ADHERENCE DECAY OVER TIME")
+                st.line_chart(df_timeline[["High Risk Population (%)", "Active Compliance Rate (%)"]], height=220)
+
+            st.caption(f"💡 **Behavioral Insight**: {long_data.get('behavioral_takeaway', '')}")
+
+        # Demographic Fairness Breakdown
+        dem_metrics = latest.get("demographic_fairness", [])
+        if dem_metrics:
+            st.markdown("##### ⚖️ Demographic Fairness & Parity Audit")
+            df_dem = pd.DataFrame([{
+                "Demographic Cohort": m["demographic_group"],
+                "Sample Count": m["sample_count"],
+                "Adoption / Acceptance Rate": f"{m['acceptance_rate']}%",
+                "Trust Score": f"{m['avg_trust_score']} / 1.0",
+                "Disparity Ratio": f"{m['disparity_ratio']}x",
+                "Status": "✅ Fair" if m["status"] == "fair" else "⚠️ Disparity Detected",
+            } for m in dem_metrics])
+            st.dataframe(df_dem, use_container_width=True, hide_index=True)
+
+        # Failure Mode Clusters
+        clusters = latest.get("failure_clusters", [])
+        if clusters:
+            st.markdown("##### 🚨 Automated Adversarial Failure Mode Clusters")
+            for c in clusters:
+                with st.expander(f"⚠️ {c['cluster_name']} ({c['affected_percentage']}% of failure cohort, N={c['sample_size']})", expanded=True):
+                    st.markdown(f"**Root Cause**: {c['root_cause']}")
+                    st.markdown(f"**Common Traits in Vulnerable Cohort**: `{'`, `'.join(c.get('common_traits', []))}`")
+                    st.markdown(f"💡 **Recommended Calibration**: {c['suggested_fix']}")
+
+        # Sample Citizen Interaction Logs
+        samples = latest.get("sample_interactions", [])
+        if samples:
+            st.markdown("##### 📝 Representative Correlated Synthetic Interaction Logs")
+            df_samples = pd.DataFrame([{
+                "Citizen ID": s["citizen_id"],
+                "Name": s["citizen_name"],
+                "Correlated Biomarkers": s["demographics_summary"],
+                "Model Output": str(s["agent_raw_output"].get("decision", s["agent_raw_output"].get("score", "Processed"))),
+                "Decision Accepted": "✅ Yes" if s["decision_accepted"] else "❌ No",
+                "Trust Delta": f"{'+' if s['trust_score_delta']>0 else ''}{s['trust_score_delta']}",
+                "Adversarial Failure": "🚨 Error/Bias" if s["is_adversarial_failure"] else "Normal",
+            } for s in samples])
+            st.dataframe(df_samples, use_container_width=True, hide_index=True)
 
 # ═══════════════════════════════════════
 # TAB: Live Feed
@@ -959,9 +1246,9 @@ with tab_citizens:
             cit_df,
             use_container_width=True,
             column_config={
-                "Happiness": st.column_config.ProgressColumn("Happiness", min_value=0, max_value=1, format="%.0%%"),
-                "Health": st.column_config.ProgressColumn("Health", min_value=0, max_value=1, format="%.0%%"),
-                "Stress": st.column_config.ProgressColumn("Stress", min_value=0, max_value=1, format="%.0%%"),
+                "Happiness": st.column_config.ProgressColumn("Happiness", min_value=0, max_value=1, format="%.0f%%"),
+                "Health": st.column_config.ProgressColumn("Health", min_value=0, max_value=1, format="%.0f%%"),
+                "Stress": st.column_config.ProgressColumn("Stress", min_value=0, max_value=1, format="%.0f%%"),
                 "Balance": st.column_config.NumberColumn("Balance", format="$%.0f"),
             },
             height=380,
@@ -1158,7 +1445,7 @@ with tab_traffic:
             "Vehicles": s["vehicles"],
         } for s in congestion[:20]]),
             use_container_width=True,
-            column_config={"Congestion": st.column_config.ProgressColumn("Congestion", min_value=0, max_value=1, format="%.0%%")},
+            column_config={"Congestion": st.column_config.ProgressColumn("Congestion", min_value=0, max_value=1, format="%.0f%%")},
         )
 
 # ═══════════════════════════════════════
@@ -1230,7 +1517,7 @@ with tab_gov:
             use_container_width=True,
             column_config={
                 "Budget": st.column_config.NumberColumn("Budget", format="$%.0f"),
-                "Efficiency": st.column_config.ProgressColumn("Efficiency", min_value=0, max_value=1, format="%.0%%"),
+                "Efficiency": st.column_config.ProgressColumn("Efficiency", min_value=0, max_value=1, format="%.0f%%"),
             },
         )
 
@@ -1379,7 +1666,7 @@ with tab_disasters:
         } for d in disaster_history]),
             use_container_width=True, hide_index=True,
             column_config={
-                "Max Intensity": st.column_config.ProgressColumn("Max Intensity", min_value=0, max_value=1, format="%.0%%"),
+                "Max Intensity": st.column_config.ProgressColumn("Max Intensity", min_value=0, max_value=1, format="%.0f%%"),
                 "Econ Damage": st.column_config.NumberColumn("Econ Damage", format="$%.0f"),
             },
         )
@@ -1480,8 +1767,8 @@ with tab_elections:
                 } for c in e["candidates"]])
                 st.dataframe(cand_df, use_container_width=True, hide_index=True,
                     column_config={
-                        "Popularity": st.column_config.ProgressColumn("Popularity", min_value=0, max_value=1, format="%.0%%"),
-                        "Vote Share": st.column_config.ProgressColumn("Vote Share", min_value=0, max_value=1, format="%.1%%"),
+                        "Popularity": st.column_config.ProgressColumn("Popularity", min_value=0, max_value=1, format="%.0f%%"),
+                        "Vote Share": st.column_config.ProgressColumn("Vote Share", min_value=0, max_value=1, format="%.1f%%"),
                     })
 
                 votes = {c["name"]: c["votes"] for c in e["candidates"]}
@@ -1592,6 +1879,101 @@ with tab_advisor:
 
     st.markdown("---")
     section_header("🔮", "What-If Scenario")
+    st.caption(
+        "Preset scenarios below compute real numbers from the simulation's own formulas "
+        "(police staffing → crime-solving math, tax rate → salary withholding, or the same "
+        "location-scoring model the 3D Build Mode preview uses) — not an AI guess. "
+        "The AI only writes the plain-language summary of numbers already computed here."
+    )
+
+    st.session_state.setdefault("whatif_results", [])
+    presets = api_get("/api/ai-advisor/whatif/presets") or []
+
+    if presets:
+        preset_cols = st.columns(3)
+        for i, preset in enumerate(presets):
+            with preset_cols[i % 3]:
+                if st.button(f"{preset['icon']} {preset['name']}", key=f"whatif_pick_{preset['key']}", use_container_width=True):
+                    st.session_state["whatif_selected_preset"] = preset["key"]
+
+    selected_key = st.session_state.get("whatif_selected_preset")
+    selected_preset = next((p for p in presets if p["key"] == selected_key), None)
+    if selected_preset:
+        with st.container(border=True):
+            st.markdown(f"**{selected_preset['icon']} {selected_preset['name']}**")
+            param_values = {}
+            for param in selected_preset["params"]:
+                if param["type"] == "percent":
+                    val = st.slider(param["label"], min_value=float(param["min"]) * 100, max_value=float(param["max"]) * 100,
+                                     value=float(param["default"]) * 100, step=float(param["step"]) * 100,
+                                     key=f"whatif_param_{selected_key}_{param['name']}", format="%.0f%%")
+                    param_values[param["name"]] = val / 100
+                elif param["type"] == "int":
+                    param_values[param["name"]] = st.slider(param["label"], min_value=int(param["min"]), max_value=int(param["max"]),
+                                                              value=int(param["default"]), step=int(param["step"]),
+                                                              key=f"whatif_param_{selected_key}_{param['name']}")
+                else:
+                    param_values[param["name"]] = st.number_input(param["label"], min_value=float(param["min"]), max_value=float(param["max"]),
+                                                                    value=float(param["default"]), step=float(param["step"]),
+                                                                    key=f"whatif_param_{selected_key}_{param['name']}")
+
+            run_col, clear_col = st.columns([3, 1])
+            with run_col:
+                if st.button("▶ Run Scenario", key="whatif_run_btn", use_container_width=True, type="primary"):
+                    with st.spinner("Computing grounded projection... (the AI narrative step can take a while on CPU)"):
+                        # api_post's default 10s timeout is too short here — the numeric
+                        # projection is instant, but the LLM narrative call on top of it
+                        # can run well past 10s on Ollama, and a timeout inside api_post
+                        # is swallowed into a silent None with no error shown.
+                        try:
+                            resp = httpx.post(
+                                f"{API_BASE}/api/ai-advisor/whatif/run",
+                                json={"key": selected_key, "params": param_values},
+                                timeout=90,
+                            )
+                            resp.raise_for_status()
+                            result = resp.json()
+                        except Exception as err:
+                            st.error(f"Scenario run failed: {err}")
+                            result = None
+                        if result and not result.get("error"):
+                            st.session_state["whatif_results"].append(result)
+                            st.session_state["whatif_results"] = st.session_state["whatif_results"][-3:]
+                        elif result:
+                            st.error(result["error"])
+            with clear_col:
+                if st.button("✕ Clear All", key="whatif_clear_btn", use_container_width=True):
+                    st.session_state["whatif_results"] = []
+
+    def _render_whatif_card(result: dict):
+        badge = "📊 DATA-GROUNDED" if result.get("grounded") else "🤖 AI ESTIMATE"
+        st.markdown(f"##### {result.get('title', 'Scenario')}")
+        st.caption(badge)
+        for a in result.get("assumptions", []):
+            st.caption(f"ℹ️ {a}")
+        if result.get("narrative"):
+            st.write(result["narrative"])
+        if result.get("deltas"):
+            for k, v in result["deltas"].items():
+                st.write(f"• **{k.replace('_', ' ').title()}:** {v}")
+        if result.get("cost") is not None:
+            st.write(f"• **Cost:** ${result['cost']:,.0f}")
+
+    results = st.session_state["whatif_results"]
+    if len(results) == 1:
+        with st.container(border=True):
+            _render_whatif_card(results[0])
+    elif len(results) > 1:
+        st.markdown(f"**Comparing {len(results)} scenarios:**")
+        cmp_cols = st.columns(len(results))
+        for col, result in zip(cmp_cols, results):
+            with col:
+                with st.container(border=True):
+                    _render_whatif_card(result)
+
+    st.markdown("---")
+    section_header("💭", "Custom Scenario")
+    st.caption("🤖 AI ESTIMATE — free text, no grounded formula exists for arbitrary scenarios.")
     scenario_text = st.text_area("Describe a scenario", placeholder="e.g., What if we double police funding?", key="adv_scenario")
     if st.button("Analyze", key="adv_scenario_btn", use_container_width=True) and scenario_text:
         with st.spinner("Analyzing scenario..."):
@@ -1659,7 +2041,7 @@ with tab_graph:
         } for i, inf in enumerate(influencers)]),
             use_container_width=True, hide_index=True,
             column_config={
-                "Avg Trust": st.column_config.ProgressColumn("Avg Trust", min_value=0, max_value=1, format="%.0%%"),
+                "Avg Trust": st.column_config.ProgressColumn("Avg Trust", min_value=0, max_value=1, format="%.0f%%"),
             },
         )
 
@@ -1798,7 +2180,7 @@ with tab_crime:
             "Cases Solved": u["cases_solved"],
         } for u in police]),
             use_container_width=True, hide_index=True,
-            column_config={"Effectiveness": st.column_config.ProgressColumn("Effectiveness", min_value=0, max_value=1, format="%.0%%")},
+            column_config={"Effectiveness": st.column_config.ProgressColumn("Effectiveness", min_value=0, max_value=1, format="%.0f%%")},
         )
 
 # ═══════════════════════════════════════
@@ -1835,8 +2217,8 @@ with tab_health:
         } for h in hospitals]),
             use_container_width=True, hide_index=True,
             column_config={
-                "Quality": st.column_config.ProgressColumn("Quality", min_value=0, max_value=1, format="%.0%%"),
-                "Occupancy": st.column_config.ProgressColumn("Occupancy", min_value=0, max_value=1, format="%.0%%"),
+                "Quality": st.column_config.ProgressColumn("Quality", min_value=0, max_value=1, format="%.0f%%"),
+                "Occupancy": st.column_config.ProgressColumn("Occupancy", min_value=0, max_value=1, format="%.0f%%"),
             },
         )
 
@@ -1853,7 +2235,7 @@ with tab_health:
         } for r in records]),
             use_container_width=True, hide_index=True,
             column_config={
-                "Severity": st.column_config.ProgressColumn("Severity", min_value=0, max_value=1, format="%.0%%"),
+                "Severity": st.column_config.ProgressColumn("Severity", min_value=0, max_value=1, format="%.0f%%"),
                 "Cost": st.column_config.NumberColumn("Cost", format="$%.0f"),
             },
         )
@@ -1890,8 +2272,8 @@ with tab_edu:
         } for s in schools]),
             use_container_width=True, hide_index=True,
             column_config={
-                "Quality": st.column_config.ProgressColumn("Quality", min_value=0, max_value=1, format="%.0%%"),
-                "Grad Rate": st.column_config.ProgressColumn("Grad Rate", min_value=0, max_value=1, format="%.0%%"),
+                "Quality": st.column_config.ProgressColumn("Quality", min_value=0, max_value=1, format="%.0f%%"),
+                "Grad Rate": st.column_config.ProgressColumn("Grad Rate", min_value=0, max_value=1, format="%.0f%%"),
                 "Tuition": st.column_config.NumberColumn("Tuition", format="$%.0f"),
             },
         )
@@ -1907,7 +2289,7 @@ with tab_edu:
         } for e in enrollments]),
             use_container_width=True, hide_index=True,
             column_config={
-                "Progress": st.column_config.ProgressColumn("Progress", min_value=0, max_value=1, format="%.0%%"),
+                "Progress": st.column_config.ProgressColumn("Progress", min_value=0, max_value=1, format="%.0f%%"),
             },
         )
 
@@ -1951,8 +2333,8 @@ with tab_housing:
             column_config={
                 "Value": st.column_config.NumberColumn("Value", format="$%.0f"),
                 "Rent": st.column_config.NumberColumn("Rent", format="$%.0f/mo"),
-                "Quality": st.column_config.ProgressColumn("Quality", min_value=0, max_value=1, format="%.0%%"),
-                "Condition": st.column_config.ProgressColumn("Condition", min_value=0, max_value=1, format="%.0%%"),
+                "Quality": st.column_config.ProgressColumn("Quality", min_value=0, max_value=1, format="%.0f%%"),
+                "Condition": st.column_config.ProgressColumn("Condition", min_value=0, max_value=1, format="%.0f%%"),
             },
         )
 
@@ -2018,8 +2400,8 @@ with tab_news:
         } for o in outlets]),
             use_container_width=True, hide_index=True,
             column_config={
-                "Credibility": st.column_config.ProgressColumn("Credibility", min_value=0, max_value=1, format="%.0%%"),
-                "Reach": st.column_config.ProgressColumn("Reach", min_value=0, max_value=1, format="%.0%%"),
+                "Credibility": st.column_config.ProgressColumn("Credibility", min_value=0, max_value=1, format="%.0f%%"),
+                "Reach": st.column_config.ProgressColumn("Reach", min_value=0, max_value=1, format="%.0f%%"),
             },
         )
 
@@ -2059,7 +2441,7 @@ with tab_culture:
         } for v in venues]),
             use_container_width=True, hide_index=True,
             column_config={
-                "Popularity": st.column_config.ProgressColumn("Popularity", min_value=0, max_value=1, format="%.0%%"),
+                "Popularity": st.column_config.ProgressColumn("Popularity", min_value=0, max_value=1, format="%.0f%%"),
                 "Ticket": st.column_config.NumberColumn("Ticket", format="$%.2f"),
                 "Revenue": st.column_config.NumberColumn("Revenue", format="$%.0f"),
             },
@@ -2125,7 +2507,7 @@ with tab_environment:
             use_container_width=True, hide_index=True,
             column_config={
                 "Cost": st.column_config.NumberColumn("Cost", format="$%.0f"),
-                "Progress": st.column_config.ProgressColumn("Progress", min_value=0, max_value=1, format="%.0%%"),
+                "Progress": st.column_config.ProgressColumn("Progress", min_value=0, max_value=1, format="%.0f%%"),
             },
         )
 
@@ -2177,6 +2559,162 @@ with tab_demographics:
 # TAB: Infrastructure
 # ═══════════════════════════════════════
 with tab_infra:
+    section_header("📍", "Plan a Build")
+    st.caption(
+        "Click a spot on the map to preview who it would actually affect before committing "
+        "to build. Bridges/roads need two clicks — first point, then the far endpoint."
+    )
+
+    PLAN_TYPE_LABELS = {
+        "hospital_build": "🏥 Hospital",
+        "bridge_build": "🌉 Bridge (2 points)",
+        "road_build": "🛣 Road (2 points)",
+    }
+    plan_type = st.selectbox(
+        "What to build", list(PLAN_TYPE_LABELS.keys()),
+        format_func=lambda t: PLAN_TYPE_LABELS[t], key="infra_plan_type",
+    )
+    needs_two_points = plan_type in ("bridge_build", "road_build")
+
+    if "infra_plan_points" not in st.session_state:
+        st.session_state.infra_plan_points = []
+    if st.session_state.get("infra_plan_type_prev") != plan_type:
+        st.session_state.infra_plan_points = []
+        st.session_state.infra_plan_last_click = None
+        st.session_state.infra_plan_type_prev = plan_type
+
+    plan_districts = api_get("/api/city/districts") or []
+    plan_citizens = api_get("/api/citizens/?limit=1200") or []
+
+    if plan_districts:
+        fig = go.Figure()
+
+        for d in plan_districts:
+            fig.add_shape(
+                type="circle", xref="x", yref="y",
+                x0=d["center_x"] - d["radius"], y0=d["center_y"] - d["radius"],
+                x1=d["center_x"] + d["radius"], y1=d["center_y"] + d["radius"],
+                line=dict(color="rgba(124,108,246,0.35)"),
+                fillcolor="rgba(124,108,246,0.05)",
+            )
+            fig.add_annotation(
+                x=d["center_x"], y=d["center_y"], text=d["name"], showarrow=False,
+                font=dict(color="#9498ab", size=11),
+            )
+
+        cxs = [c["x"] for c in plan_citizens if c.get("x") is not None]
+        cys = [c["y"] for c in plan_citizens if c.get("y") is not None]
+        if cxs:
+            fig.add_trace(go.Scattergl(
+                x=cxs, y=cys, mode="markers",
+                marker=dict(size=3, color="rgba(45,212,167,0.35)"),
+                hoverinfo="skip", showlegend=False,
+            ))
+
+        # Plotly's click-select only fires on an actual marker, not blank canvas — lay
+        # down a fine, near-invisible grid the user is effectively clicking "through" so
+        # any spot on the map is selectable, snapped to the nearest grid point.
+        xs = [d["center_x"] for d in plan_districts]
+        ys = [d["center_y"] for d in plan_districts]
+        rs = [d["radius"] for d in plan_districts]
+        min_x, max_x = min(x - r for x, r in zip(xs, rs)) - 100, max(x + r for x, r in zip(xs, rs)) + 100
+        min_y, max_y = min(y - r for y, r in zip(ys, rs)) - 100, max(y + r for y, r in zip(ys, rs)) + 100
+        step = 150
+        grid_x, grid_y = [], []
+        gx = min_x
+        while gx <= max_x:
+            gy = min_y
+            while gy <= max_y:
+                grid_x.append(gx)
+                grid_y.append(gy)
+                gy += step
+            gx += step
+
+        # Plain Scatter (SVG), not Scattergl (WebGL) — WebGL's picking buffer can drop
+        # near-zero-opacity points from hit-testing, which silently breaks click-to-select.
+        # hoverinfo="none" (not "skip") — "skip" excludes a trace from hit-testing
+        # entirely, which kills click-to-select along with the tooltip; "none" only
+        # suppresses the tooltip text and leaves the trace clickable.
+        fig.add_trace(go.Scatter(
+            x=grid_x, y=grid_y, mode="markers",
+            marker=dict(size=14, color="rgba(255,255,255,0)"),
+            hoverinfo="none", showlegend=False,
+        ))
+
+        if st.session_state.infra_plan_points:
+            fig.add_trace(go.Scatter(
+                x=[p[0] for p in st.session_state.infra_plan_points],
+                y=[p[1] for p in st.session_state.infra_plan_points],
+                mode="markers+text",
+                marker=dict(size=16, color="#e8b94d", symbol="star"),
+                text=["A", "B"][:len(st.session_state.infra_plan_points)],
+                textposition="top center", showlegend=False,
+            ))
+
+        fig.update_layout(
+            height=460, plot_bgcolor="#0a0b10", paper_bgcolor="#0a0b10",
+            font=dict(color="#eceef5"),
+            margin=dict(l=10, r=10, t=10, b=10),
+            xaxis=dict(showgrid=False, zeroline=False, visible=False),
+            yaxis=dict(showgrid=False, zeroline=False, visible=False, scaleanchor="x"),
+            clickmode="event+select",
+            dragmode=False,
+            hovermode="closest",
+        )
+
+        click = st.plotly_chart(fig, use_container_width=True, on_select="rerun", key="infra_map_click")
+        points = (click.get("selection", {}) or {}).get("points", []) if click else []
+
+        if points:
+            new_point = (points[0]["x"], points[0]["y"])
+            if st.session_state.get("infra_plan_last_click") != new_point:
+                st.session_state.infra_plan_last_click = new_point
+                if len(st.session_state.infra_plan_points) < (2 if needs_two_points else 1):
+                    st.session_state.infra_plan_points.append(new_point)
+                    st.rerun()
+
+        if st.button("Clear selection", key="infra_plan_clear"):
+            st.session_state.infra_plan_points = []
+            st.session_state.infra_plan_last_click = None
+            st.rerun()
+
+        ready = len(st.session_state.infra_plan_points) == (2 if needs_two_points else 1)
+
+        if ready:
+            x, y = st.session_state.infra_plan_points[0]
+            payload = {"project_type": plan_type, "x": x, "y": y}
+            if needs_two_points:
+                target_x, target_y = st.session_state.infra_plan_points[1]
+                payload["target_x"] = target_x
+                payload["target_y"] = target_y
+
+            impact = api_post("/api/infrastructure/preview-impact", payload)
+            if impact:
+                st.markdown(f"**{impact.get('summary', '')}**")
+                bcol, ccol = st.columns(2)
+                with bcol:
+                    st.caption(f"Beneficiaries ({impact.get('total_beneficiaries', 0)} total)")
+                    if impact.get("beneficiaries"):
+                        st.dataframe(pd.DataFrame(impact["beneficiaries"]), use_container_width=True, hide_index=True)
+                with ccol:
+                    st.caption(f"Nearby businesses ({len(impact.get('businesses', []))})")
+                    if impact.get("businesses"):
+                        st.dataframe(pd.DataFrame(impact["businesses"]), use_container_width=True, hide_index=True)
+
+                if st.button("🚀 Approve & Start Construction", key="infra_plan_confirm", use_container_width=True):
+                    r = api_post("/api/infrastructure/trigger", payload)
+                    if r:
+                        st.toast(f"Started: {r.get('name')}", icon="🏗")
+                        st.session_state.infra_plan_points = []
+                        st.session_state.infra_plan_last_click = None
+                        st.rerun()
+        elif needs_two_points and len(st.session_state.infra_plan_points) == 1:
+            st.info("Click a second point to set the endpoint.")
+        else:
+            st.info("Click a point on the map above to preview its impact.")
+
+    st.markdown("---")
+
     infra_stats = api_get("/api/infrastructure/stats")
     if infra_stats:
         section_header("⚡", "Infrastructure & Utilities")
@@ -2208,9 +2746,9 @@ with tab_infra:
         } for g in grids]),
             use_container_width=True, hide_index=True,
             column_config={
-                "Reliability": st.column_config.ProgressColumn("Reliability", min_value=0, max_value=1, format="%.0%%"),
-                "Coverage": st.column_config.ProgressColumn("Coverage", min_value=0, max_value=1, format="%.0%%"),
-                "Health": st.column_config.ProgressColumn("Health", min_value=0, max_value=1, format="%.0%%"),
+                "Reliability": st.column_config.ProgressColumn("Reliability", min_value=0, max_value=1, format="%.0f%%"),
+                "Coverage": st.column_config.ProgressColumn("Coverage", min_value=0, max_value=1, format="%.0f%%"),
+                "Health": st.column_config.ProgressColumn("Health", min_value=0, max_value=1, format="%.0f%%"),
             },
         )
 
@@ -2229,7 +2767,7 @@ with tab_infra:
             column_config={
                 "Budget": st.column_config.NumberColumn("Budget", format="$%.0f"),
                 "Spent": st.column_config.NumberColumn("Spent", format="$%.0f"),
-                "Progress": st.column_config.ProgressColumn("Progress", min_value=0, max_value=1, format="%.0%%"),
+                "Progress": st.column_config.ProgressColumn("Progress", min_value=0, max_value=1, format="%.0f%%"),
             },
         )
 
@@ -2270,7 +2808,7 @@ with tab_tourism:
         } for h in hotels]),
             use_container_width=True, hide_index=True,
             column_config={
-                "Occupancy": st.column_config.ProgressColumn("Occupancy", min_value=0, max_value=1, format="%.0%%"),
+                "Occupancy": st.column_config.ProgressColumn("Occupancy", min_value=0, max_value=1, format="%.0f%%"),
                 "Price/Night": st.column_config.NumberColumn("Price/Night", format="$%.0f"),
                 "Revenue": st.column_config.NumberColumn("Revenue", format="$%.0f"),
             },
@@ -2290,7 +2828,7 @@ with tab_tourism:
         } for a in attractions]),
             use_container_width=True, hide_index=True,
             column_config={
-                "Popularity": st.column_config.ProgressColumn("Popularity", min_value=0, max_value=1, format="%.0%%"),
+                "Popularity": st.column_config.ProgressColumn("Popularity", min_value=0, max_value=1, format="%.0f%%"),
                 "Ticket": st.column_config.NumberColumn("Ticket", format="$%.2f"),
             },
         )
@@ -2309,7 +2847,7 @@ with tab_tourism:
             column_config={
                 "Budget": st.column_config.NumberColumn("Budget", format="$%.0f"),
                 "Spent": st.column_config.NumberColumn("Spent", format="$%.0f"),
-                "Satisfaction": st.column_config.ProgressColumn("Satisfaction", min_value=0, max_value=1, format="%.0%%"),
+                "Satisfaction": st.column_config.ProgressColumn("Satisfaction", min_value=0, max_value=1, format="%.0f%%"),
             },
         )
 

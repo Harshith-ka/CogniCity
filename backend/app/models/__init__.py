@@ -23,6 +23,8 @@ from backend.app.models.environment import EnvironmentState, GreenInitiative
 from backend.app.models.demographics import LifeEvent, PopulationSnapshot
 from backend.app.models.infrastructure import UtilityGrid, InfraProject
 from backend.app.models.tourism import Hotel, TouristAttraction, TouristVisitor
+from backend.app.models.emergency_services import FireStation
+from backend.app.models.auth import Organization, PlatformUser
 
 __all__ = [
     "Citizen",
@@ -77,4 +79,7 @@ __all__ = [
     "Hotel",
     "TouristAttraction",
     "TouristVisitor",
+    "FireStation",
+    "Organization",
+    "PlatformUser",
 ]

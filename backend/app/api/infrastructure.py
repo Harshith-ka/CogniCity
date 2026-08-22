@@ -11,6 +11,8 @@ from backend.app.core.database import get_db
 from backend.app.models.city import District
 from backend.app.models.infrastructure import UtilityGrid, InfraProject
 from backend.app.infrastructure.infrastructure_engine import InfrastructureEngine, BUILD_PRESETS
+from backend.app.infrastructure.config import list_config
+from backend.app.infrastructure.impact_strategies import IMPACT_STRATEGIES
 
 router = APIRouter(prefix="/api/infrastructure", tags=["infrastructure"])
 
@@ -27,6 +29,13 @@ class TriggerProjectRequest(BaseModel):
 @router.get("/project-types")
 async def list_project_types():
     return [{"type": t, "name": preset["name"]} for t, preset in BUILD_PRESETS.items()]
+
+
+@router.get("/config")
+async def get_infrastructure_config():
+    """Single source of truth for Build Mode: icon, cost, service radius, capacity —
+    the 3D view's infra drawer is built from this instead of hardcoding it in HTML."""
+    return list_config()
 
 
 @router.post("/trigger")
@@ -56,6 +65,40 @@ async def trigger_project(req: TriggerProjectRequest, db: AsyncSession = Depends
         "target_y": project.target_y,
         "budget": project.budget,
     }
+
+
+class PreviewImpactRequest(BaseModel):
+    project_type: str
+    x: float
+    y: float
+    target_x: float | None = None
+    target_y: float | None = None
+
+
+@router.post("/preview-impact")
+async def preview_impact(req: PreviewImpactRequest, db: AsyncSession = Depends(get_db)):
+    """Read-only 'what if' — dispatches to the per-type impact strategy in
+    impact_strategies.py and returns its calculated metrics, before anything is
+    committed. No project is created here. This is what both the click-to-lock-in
+    preview AND the continuous live-hover preview call."""
+    if req.project_type not in BUILD_PRESETS:
+        raise HTTPException(status_code=400, detail=f"Unknown project_type: {req.project_type}")
+
+    strategy = IMPACT_STRATEGIES.get(req.project_type)
+    if not strategy:
+        return {
+            "beneficiaries": [], "total_beneficiaries": 0, "businesses": [],
+            "summary": "No impact model for this project type yet.",
+        }
+
+    if req.project_type in ("bridge_build", "road_build") and (req.target_x is None or req.target_y is None):
+        raise HTTPException(status_code=400, detail="target_x/target_y required for this project type")
+
+    try:
+        result = await strategy(db, req.x, req.y, target_x=req.target_x, target_y=req.target_y, project_type=req.project_type)
+    except ValueError as err:
+        raise HTTPException(status_code=400, detail=str(err))
+    return result.to_dict()
 
 
 @router.get("/stats")

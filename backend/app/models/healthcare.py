@@ -18,6 +18,11 @@ class Hospital(Base):
     name: Mapped[str] = mapped_column(String(200))
     hospital_type: Mapped[str] = mapped_column(String(50))  # general, emergency, psychiatric, clinic
     district_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("districts.id"), nullable=True)
+    # Exact sim-world placement — nullable because pre-existing/auto-generated hospitals
+    # only ever had a district. A manually placed one (via Build Mode) always sets these,
+    # so distance/coverage math can use the real point instead of the district centroid.
+    x: Mapped[float | None] = mapped_column(Float, nullable=True)
+    y: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     total_beds: Mapped[int] = mapped_column(Integer, default=100)
     occupied_beds: Mapped[int] = mapped_column(Integer, default=0)

@@ -1,0 +1,1463 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>COGNICITY_OS v2.4 • Tactical Command Terminal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+
+  <style>
+    :root {
+      --bg-base: #06070a;
+      --bg-panel: #0b0d13;
+      --bg-card: #0f121a;
+      --bg-card-hover: #141824;
+      --border-dim: #1c2230;
+      --border-bright: #2d3748;
+      --cyan-primary: #00e5ff;
+      --cyan-glow: rgba(0, 229, 255, 0.45);
+      --cyan-dim: rgba(0, 229, 255, 0.12);
+      --orange-primary: #ff6600;
+      --orange-glow: rgba(255, 102, 0, 0.5);
+      --orange-dim: rgba(255, 102, 0, 0.15);
+      --red-alert: #ff3366;
+      --green-nominal: #00e676;
+      --text-main: #edf2f7;
+      --text-dim: #8b9bb4;
+      --text-muted: #4a5568;
+      --font-display: 'Chakra Petch', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+      --font-sans: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-base);
+      color: var(--text-main);
+      font-family: var(--font-mono);
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+      display: flex;
+      flex-direction: column;
+      background-image:
+        linear-gradient(rgba(0, 229, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 229, 255, 0.03) 1px, transparent 1px);
+      background-size: 32px 32px;
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+   TOP HEADER (COGNICITY_OS BAR)
+───────────────────────────────────────────────────────────── */
+    header {
+      height: 56px;
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border-dim);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      z-index: 50;
+    }
+
+    .brand-section {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-icon {
+      width: 28px;
+      height: 28px;
+      background: var(--orange-primary);
+      clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #000;
+      font-weight: 900;
+      font-size: 14px;
+    }
+
+    .brand-title {
+      font-family: var(--font-display);
+      font-size: 1.15rem;
+      font-weight: 800;
+      letter-spacing: 1px;
+      color: #fff;
+    }
+
+    .brand-version {
+      font-size: 0.72rem;
+      color: var(--cyan-primary);
+      font-weight: 700;
+      margin-left: 4px;
+    }
+
+    .defcon-strip {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--bg-card);
+      padding: 6px 14px;
+      border: 1px solid var(--border-dim);
+      border-radius: 4px;
+    }
+
+    .defcon-label {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      font-weight: 700;
+    }
+
+    .defcon-bars {
+      display: flex;
+      gap: 4px;
+    }
+
+    .defcon-bar {
+      width: 14px;
+      height: 10px;
+      background: #222a38;
+      border-radius: 1px;
+    }
+
+    .defcon-bar.active-cyan {
+      background: var(--cyan-primary);
+      box-shadow: 0 0 8px var(--cyan-glow);
+    }
+
+    .defcon-bar.active-orange {
+      background: var(--orange-primary);
+      box-shadow: 0 0 8px var(--orange-glow);
+    }
+
+    .defcon-val {
+      font-size: 0.78rem;
+      font-weight: 800;
+      color: var(--cyan-primary);
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .sys-status-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--cyan-dim);
+      border: 1px solid var(--cyan-primary);
+      padding: 4px 12px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 800;
+      color: var(--cyan-primary);
+      letter-spacing: 0.5px;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      background: var(--cyan-primary);
+      border-radius: 50%;
+      animation: pulse-dot 1.5s infinite;
+    }
+
+    .user-tag {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.75rem;
+      color: var(--text-dim);
+    }
+
+    .user-tag b {
+      color: var(--orange-primary);
+    }
+
+    .user-avatar {
+      width: 28px;
+      height: 28px;
+      background: #1a2233;
+      border: 1px solid var(--border-bright);
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+   MAIN CONTAINER (SIDEBAR + CONTENT)
+───────────────────────────────────────────────────────────── */
+    .main-layout {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+   TACTICAL SIDEBAR
+───────────────────────────────────────────────────────────── */
+    aside {
+      width: 260px;
+      background: var(--bg-panel);
+      border-right: 1px solid var(--border-dim);
+      display: flex;
+      flex-direction: column;
+      padding: 16px 12px;
+      gap: 14px;
+      overflow-y: auto;
+      user-select: none;
+    }
+
+    aside::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    aside::-webkit-scrollbar-thumb {
+      background: var(--border-dim);
+    }
+
+    .telemetry-box {
+      background: #090b10;
+      border: 1px solid var(--cyan-primary);
+      border-radius: 4px;
+      padding: 10px 12px;
+      position: relative;
+    }
+
+    .telemetry-box::before {
+      content: "SYSTEM TELEMETRY";
+      position: absolute;
+      top: -7px;
+      left: 8px;
+      background: var(--bg-panel);
+      padding: 0 6px;
+      font-size: 0.62rem;
+      color: var(--cyan-primary);
+      font-weight: 800;
+      letter-spacing: 1px;
+    }
+
+    .telemetry-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      margin-top: 4px;
+    }
+
+    .telemetry-row .k {
+      color: var(--text-dim);
+    }
+
+    .telemetry-row .v {
+      color: var(--cyan-primary);
+      font-weight: 700;
+    }
+
+    .telemetry-row .v.orange {
+      color: var(--orange-primary);
+    }
+
+    .btn-city-view {
+      background: var(--orange-primary);
+      color: #000;
+      border: none;
+      border-radius: 4px;
+      padding: 12px;
+      font-family: var(--font-display);
+      font-size: 0.95rem;
+      font-weight: 800;
+      letter-spacing: 1px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      box-shadow: 0 0 16px var(--orange-glow);
+      transition: all 0.15s ease;
+      text-decoration: none;
+    }
+
+    .btn-city-view:hover {
+      background: #ff771a;
+      box-shadow: 0 0 24px var(--orange-glow);
+      transform: translateY(-1px);
+    }
+
+    .menu-divider {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.62rem;
+      color: var(--text-muted);
+      letter-spacing: 1.5px;
+      margin: 4px 0;
+    }
+
+    .menu-divider::before,
+    .menu-divider::after {
+      content: "";
+      flex: 1;
+      height: 1px;
+      background: var(--border-dim);
+    }
+
+    .nav-list {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      flex: 1;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-size: 0.76rem;
+      font-weight: 700;
+      color: var(--text-dim);
+      cursor: pointer;
+      transition: all 0.12s;
+      border: 1px solid transparent;
+    }
+
+    .nav-item:hover {
+      background: var(--bg-card);
+      color: var(--text-main);
+      border-color: var(--border-dim);
+    }
+
+    .nav-item.active {
+      background: var(--cyan-primary);
+      color: #000;
+      font-weight: 800;
+      box-shadow: 0 0 14px var(--cyan-glow);
+    }
+
+    .nav-item .icon {
+      font-size: 14px;
+      width: 18px;
+      text-align: center;
+    }
+
+    .hazard-status-bar {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border-dim);
+    }
+
+    .hazard-stripes {
+      height: 6px;
+      width: 100%;
+      background: repeating-linear-gradient(45deg,
+          var(--orange-primary),
+          var(--orange-primary) 8px,
+          #11141d 8px,
+          #11141d 16px);
+      border-radius: 2px;
+    }
+
+    .secure-link-text {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.65rem;
+      color: var(--cyan-primary);
+      font-weight: 700;
+    }
+
+    /* ─────────────────────────────────────────────────────────────
+   CONTENT AREA & CYBER-TACTICAL CARDS
+───────────────────────────────────────────────────────────── */
+    main {
+      flex: 1;
+      background: transparent;
+      padding: 20px 24px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    main::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    main::-webkit-scrollbar-thumb {
+      background: var(--border-bright);
+      border-radius: 3px;
+    }
+
+    .sector-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      border-bottom: 2px solid var(--border-dim);
+      padding-bottom: 12px;
+    }
+
+    .sector-tag {
+      font-size: 0.72rem;
+      color: var(--cyan-primary);
+      font-weight: 800;
+      letter-spacing: 1.5px;
+      margin-bottom: 4px;
+    }
+
+    .sector-title {
+      font-family: var(--font-display);
+      font-size: 1.85rem;
+      font-weight: 800;
+      letter-spacing: 1px;
+      color: #fff;
+    }
+
+    .sector-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .tactical-grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 16px;
+    }
+
+    /* Corner-Bracket Tactical Card */
+    .tac-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-dim);
+      border-radius: 4px;
+      padding: 16px;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .tac-card::before,
+    .tac-card::after {
+      content: "";
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      border-color: var(--cyan-primary);
+      pointer-events: none;
+    }
+
+    .tac-card::before {
+      top: -1px;
+      left: -1px;
+      border-top: 2px solid var(--cyan-primary);
+      border-left: 2px solid var(--cyan-primary);
+    }
+
+    .tac-card::after {
+      bottom: -1px;
+      right: -1px;
+      border-bottom: 2px solid var(--cyan-primary);
+      border-right: 2px solid var(--cyan-primary);
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .card-title {
+      font-size: 0.72rem;
+      font-weight: 800;
+      color: var(--cyan-primary);
+      letter-spacing: 1px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .card-uid {
+      font-size: 0.65rem;
+      color: var(--text-muted);
+    }
+
+    .metric-huge {
+      font-family: var(--font-display);
+      font-size: 2.2rem;
+      font-weight: 800;
+      color: #fff;
+      line-height: 1;
+    }
+
+    .metric-huge .delta {
+      font-size: 0.85rem;
+      color: var(--cyan-primary);
+      font-weight: 700;
+      vertical-align: middle;
+      margin-left: 8px;
+    }
+
+    .capacity-meter {
+      display: flex;
+      gap: 3px;
+      margin: 6px 0;
+    }
+
+    .cap-seg {
+      flex: 1;
+      height: 10px;
+      background: #182030;
+      border-radius: 1px;
+    }
+
+    .cap-seg.active {
+      background: var(--cyan-primary);
+      box-shadow: 0 0 6px var(--cyan-glow);
+    }
+
+    .stat-subtext {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.68rem;
+      color: var(--text-dim);
+      font-weight: 700;
+    }
+
+    /* Tactical Map Canvas */
+    .map-canvas-container {
+      height: 240px;
+      background: #080a0f;
+      border: 1px solid var(--border-dim);
+      border-radius: 4px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    #tactical-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    /* Tactical Data Table */
+    .tac-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.72rem;
+    }
+
+    .tac-table th {
+      text-align: left;
+      padding: 8px 10px;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border-dim);
+      font-size: 0.65rem;
+      letter-spacing: 1px;
+    }
+
+    .tac-table td {
+      padding: 8px 10px;
+      border-bottom: 1px solid #141a24;
+      color: var(--text-dim);
+    }
+
+    .tac-table tr:hover td {
+      background: var(--bg-card-hover);
+      color: #fff;
+    }
+
+    .badge-nominal {
+      background: rgba(0, 230, 118, 0.15);
+      color: #00e676;
+      padding: 2px 6px;
+      border-radius: 2px;
+      font-weight: 800;
+    }
+
+    .badge-monitored {
+      background: rgba(255, 102, 0, 0.15);
+      color: #ff6600;
+      padding: 2px 6px;
+      border-radius: 2px;
+      font-weight: 800;
+    }
+
+    .badge-delayed {
+      background: rgba(255, 51, 102, 0.15);
+      color: #ff3366;
+      padding: 2px 6px;
+      border-radius: 2px;
+      font-weight: 800;
+    }
+
+    /* Interactive Toggle Switch */
+    .tac-switch {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px;
+      background: #0d1017;
+      border: 1px solid var(--border-dim);
+      border-radius: 4px;
+    }
+
+    .switch-label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .switch-sub {
+      font-size: 0.65rem;
+      color: var(--cyan-primary);
+    }
+
+    .switch-btn {
+      background: #1c2433;
+      color: #64748b;
+      border: none;
+      padding: 4px 10px;
+      border-radius: 2px;
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .switch-btn.on {
+      background: var(--orange-primary);
+      color: #000;
+      box-shadow: 0 0 10px var(--orange-glow);
+    }
+
+    @keyframes pulse-dot {
+
+      0%,
+      100% {
+        transform: scale(1);
+        opacity: 1;
+      }
+
+      50% {
+        transform: scale(1.3);
+        opacity: 0.6;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ─────────────────────────────────────────────────────────────
+     HEADER
+───────────────────────────────────────────────────────────── -->
+  <header>
+    <div class="brand-section">
+      <div class="brand-icon">🛡️</div>
+      <div class="brand-title">COGNICITY_OS<span class="brand-version">v2.4</span></div>
+    </div>
+
+    <div class="defcon-strip">
+      <span class="defcon-label">DEFCON:</span>
+      <div class="defcon-bars">
+        <div class="defcon-bar active-cyan"></div>
+        <div class="defcon-bar active-cyan"></div>
+        <div class="defcon-bar active-cyan"></div>
+        <div class="defcon-bar active-cyan"></div>
+        <div class="defcon-bar active-orange"></div>
+        <div class="defcon-bar"></div>
+      </div>
+      <span class="defcon-val">LVL_4</span>
+    </div>
+
+    <div class="header-right">
+      <div class="sys-status-badge">
+        <div class="status-dot"></div>
+        <span>SYS_STATUS: NOMINAL</span>
+      </div>
+      <div class="user-tag">
+        AUTH_USER: <b>ADMIN_01</b>
+        <div class="user-avatar">👤</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ─────────────────────────────────────────────────────────────
+     MAIN INTERFACE
+───────────────────────────────────────────────────────────── -->
+  <div class="main-layout">
+
+    <!-- ─────────────────────────────────────────────────────────
+       SIDEBAR
+  ───────────────────────────────────────────────────────── -->
+    <aside>
+      <div class="telemetry-box">
+        <div class="telemetry-row"><span class="k">TICK</span><span class="v" id="tel-tick">000482</span></div>
+        <div class="telemetry-row"><span class="k">POP</span><span class="v" id="tel-pop">10,000</span></div>
+        <div class="telemetry-row"><span class="k">WX</span><span class="v orange" id="tel-wx">CLR_28C</span></div>
+      </div>
+
+      <a class="btn-city-view" href="/city3d" target="_blank">
+        <span>⚙</span> CITY_VIEW
+      </a>
+
+      <div class="menu-divider">COMMAND_MODULES</div>
+
+      <div class="nav-list" id="nav-list">
+        <!-- Generated via Javascript for all 28 tabs -->
+      </div>
+
+      <div class="hazard-status-bar">
+        <div class="hazard-stripes"></div>
+        <div class="secure-link-text">
+          <span>■ SECURE_LINK_ACTIVE</span>
+          <span>99.9%</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ─────────────────────────────────────────────────────────
+       VIEWPORT
+  ───────────────────────────────────────────────────────── -->
+    <main id="main-viewport">
+      <!-- Active tab rendered here dynamically -->
+    </main>
+  </div>
+
+  <script>
+    const API = window.location.origin;
+
+    const MODULES = [
+      { id: 'overview', name: 'OVERVIEW', icon: '⊞', sector: 'SECTOR: ALPHA-PRIME', title: 'GLOBAL OVERVIEW' },
+      { id: 'live', name: 'LIVE ACTIVITY', icon: '📈', sector: 'SECTOR: TELEMETRY_FEED', title: 'LIVE CITIZEN ACTIVITY' },
+      { id: 'citizens', name: 'CITIZENS', icon: '👥', sector: 'SEC: OMEGA', title: 'CITIZEN_DB_V4.2' },
+      { id: 'economy', name: 'ECONOMY', icon: '🏛', sector: 'FIN_MATRIX // CENTRAL', title: 'MACROECONOMIC GRID' },
+      { id: 'traffic', name: 'TRAFFIC', icon: '🚗', sector: 'TRANSIT // URBAN_GRID', title: 'TRAFFIC CONGESTION RADAR' },
+      { id: 'comms', name: 'COMMS', icon: '💬', sector: 'SIGINT // INTERCEPT', title: 'CITIZEN COMMS NETWORK' },
+      { id: 'government', name: 'GOVERNMENT', icon: '⚖', sector: 'GOVT_COMMAND', title: 'MUNICIPAL POLICY & RESOURCE ALLOCATION' },
+      { id: 'social', name: 'SOCIAL', icon: '🤝', sector: 'GRAPH_ANALYSIS // NODES', title: 'SOCIAL INFLUENCE MATRIX' },
+      { id: 'tactical_map', name: 'TACTICAL MAP', icon: '🗺️', sector: 'TACTICAL_GEO // SECTOR_A', title: 'GEOSPATIAL SCHEMATIC VIEW' },
+      { id: 'events', name: 'EVENTS', icon: '⚡', sector: 'INCIDENT_FEED', title: 'CITY INCIDENT LOGS' },
+      { id: 'disasters', name: 'DISASTERS', icon: '🌋', sector: 'DEFCON_ALERT // CRISIS', title: 'DISASTER SENSORS & EVACUATION' },
+      { id: 'pandemic', name: 'PANDEMIC', icon: '☣', sector: 'MODULE // PUBLIC HEALTH', title: 'PANDEMIC MONITOR' },
+      { id: 'elections', name: 'ELECTIONS', icon: '🗳', sector: 'POLITICAL_INTEL', title: 'VOTER POLLING & SENTIMENT' },
+      { id: 'media', name: 'MEDIA', icon: '📱', sector: 'SURVEILLANCE_MEDIA', title: 'MEDIA DISPATCH & HASHTAGS' },
+      { id: 'advisor', name: 'AI ADVISOR', icon: '🤖', sector: 'NEURAL_ORACLE // POLICY', title: 'AI TACTICAL POLICY ADVISOR' },
+      { id: 'graph', name: 'GRAPH', icon: '🔗', sector: 'ENTITY_RELATIONSHIPS', title: 'KNOWLEDGE GRAPH ANALYSIS' },
+      { id: 'weather', name: 'WEATHER', icon: '🌤', sector: 'METEOROLOGY_RADAR', title: 'ATMOSPHERIC SENSORS' },
+      { id: 'crime', name: 'CRIME', icon: '🚔', sector: 'THREAT_MATRIX // SEC_OPS', title: 'CRIME & PATROL DEPLOYMENT' },
+      { id: 'health', name: 'HEALTH', icon: '🏥', sector: 'MED_TELEMETRY', title: 'PUBLIC HEALTHCARE MATRIX' },
+      { id: 'education', name: 'EDUCATION', icon: '🎓', sector: 'HUMAN_CAPITAL // EDU', title: 'EDUCATION & SKILL PROGRESSION' },
+      { id: 'housing', name: 'HOUSING', icon: '🏠', sector: 'ZONING // VALUATION', title: 'HOUSING & REAL ESTATE MATRIX' },
+      { id: 'news', name: 'NEWS', icon: '📰', sector: 'DAILY_WIRE // INTELLIGENCE', title: 'AUTONOMOUS CITY DISPATCH' },
+      { id: 'culture', name: 'CULTURE', icon: '🎭', sector: 'CIVIC_MORALE // ARTS', title: 'CULTURE & CITIZEN VITALITY' },
+      { id: 'environment', name: 'ENVIRONMENT', icon: '🌳', sector: 'ECOLOGY // AQI_SENSORS', title: 'ENVIRONMENTAL TELEMETRY' },
+      { id: 'demographics', name: 'DEMOGRAPHICS', icon: '🧑', sector: 'CENSUS // AGE_PYRAMID', title: 'POPULATION PYRAMIDS' },
+      { id: 'infrastructure', name: 'INFRASTRUCTURE', icon: '⚡', sector: 'CIVIC_WORKS // UTILITY', title: 'UTILITY GRIDS & CONSTRUCTION' },
+      { id: 'tourism', name: 'TOURI SM', icon: '✈️', sector: 'VISITOR_INFLUX // ECO', title: 'TOURIST ATTRACTIONS & SPEND' },
+      { id: 'sandbox', name: 'AI SANDBOX', icon: '🧪', sector: 'UNIVERSAL_HARNESS // PRE_DEPLOY', title: 'AI AGENT EVALUATION SANDBOX' },
+    ];
+
+    let activeTab = 'overview';
+    let cachedCitizens = [];
+    let cachedMetrics = {};
+
+    // ─────────────────────────────────────────────────────────────
+    // INITIALIZE NAVIGATION
+    // ─────────────────────────────────────────────────────────────
+    const navList = document.getElementById('nav-list');
+    MODULES.forEach(m => {
+      const item = document.createElement('div');
+      item.className = `nav-item ${m.id === activeTab ? 'active' : ''}`;
+      item.id = `nav-${m.id}`;
+      item.innerHTML = `<span class="icon">${m.icon}</span><span>${m.name}</span>`;
+      item.addEventListener('click', () => switchTab(m.id));
+      navList.appendChild(item);
+    });
+
+    function switchTab(tabId) {
+      activeTab = tabId;
+      document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+      document.getElementById(`nav-${tabId}`)?.classList.add('active');
+      renderActiveView();
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // VIEW RENDERER
+    // ─────────────────────────────────────────────────────────────
+    function renderActiveView() {
+      const mod = MODULES.find(m => m.id === activeTab) || MODULES[0];
+      const vp = document.getElementById('main-viewport');
+
+      let bodyHtml = '';
+
+      if (activeTab === 'overview') {
+        bodyHtml = renderOverviewHTML();
+      } else if (activeTab === 'citizens') {
+        bodyHtml = renderCitizensHTML();
+      } else if (activeTab === 'government') {
+        bodyHtml = renderGovernmentHTML();
+      } else if (activeTab === 'pandemic') {
+        bodyHtml = renderPandemicHTML();
+      } else if (activeTab === 'sandbox') {
+        bodyHtml = renderSandboxHTML();
+      } else {
+        bodyHtml = renderGenericModuleHTML(mod);
+      }
+
+      vp.innerHTML = `
+    <div class="sector-header">
+      <div>
+        <div class="sector-tag">■ ${mod.sector}</div>
+        <div class="sector-title">${mod.title}</div>
+      </div>
+      <div class="sector-controls">
+        <span style="font-size:0.75rem; color:var(--text-dim);">LAST_SYNC: <b>T-00:04</b></span>
+      </div>
+    </div>
+    ${bodyHtml}
+  `;
+
+      // Attach dynamic interactive charts/canvases if needed
+      if (activeTab === 'overview') initTacticalCanvas();
+      if (activeTab === 'citizens') initRadarChart();
+      if (activeTab === 'pandemic') initSEIRChart();
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // SCREEN 1: OVERVIEW (Screenshot 1 Match)
+    // ─────────────────────────────────────────────────────────────
+    function renderOverviewHTML() {
+      return `
+    <div class="tactical-grid">
+      <!-- Left Column (5 cols) -->
+      <div style="grid-column: span 5; display: flex; flex-direction: column; gap: 16px;">
+        
+        <!-- POPULATION METRICS -->
+        <div class="tac-card">
+          <div class="card-header">
+            <span class="card-title">👥 POPULATION METRICS</span>
+            <span class="card-uid">UID_0042</span>
+          </div>
+          <div style="font-size:0.68rem; color:var(--text-dim); font-weight:700;">TOTAL_ACTIVE</div>
+          <div class="metric-huge">${(cachedMetrics.population || 10000).toLocaleString()}<span class="delta">+2.4%</span></div>
+          <div class="capacity-meter">
+            <div class="cap-seg active"></div><div class="cap-seg active"></div><div class="cap-seg active"></div>
+            <div class="cap-seg active"></div><div class="cap-seg active"></div><div class="cap-seg"></div><div class="cap-seg"></div>
+          </div>
+          <div class="stat-subtext">
+            <span>CAPACITY: 78%</span>
+            <span>MAX: 1.9M</span>
+          </div>
+        </div>
+
+        <!-- ENERGY GRID -->
+        <div class="tac-card">
+          <div class="card-header">
+            <span class="card-title" style="color:var(--orange-primary);">⚡ ENERGY_GRID</span>
+            <span class="card-uid">UID_PWR9</span>
+          </div>
+          <div class="stat-subtext">
+            <span>CURRENT_LOAD</span>
+            <span style="color:var(--orange-primary);">PEAK: 9.1 GW</span>
+          </div>
+          <div class="metric-huge">8.4 <span style="font-size:1.1rem; color:var(--text-dim);">GW</span></div>
+          <div style="height:60px; position:relative;">
+            <canvas id="sparkline-energy"></canvas>
+          </div>
+        </div>
+
+        <!-- CRITICAL ALERTS -->
+        <div class="tac-card">
+          <div class="card-header">
+            <span class="card-title" style="color:var(--orange-primary);">⚠️ CRITICAL_ALERTS</span>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:8px; font-size:0.72rem;">
+            <div style="display:flex; justify-content:space-between;"><span style="color:var(--orange-primary);">■ UNAUTH_ACCESS (SEC-4)</span><span style="color:var(--text-muted)">08:42Z</span></div>
+            <div style="display:flex; justify-content:space-between;"><span style="color:var(--orange-primary);">■ TEMP_SPIKE (NODE-9)</span><span style="color:var(--text-muted)">08:15Z</span></div>
+            <div style="display:flex; justify-content:space-between;"><span style="color:var(--cyan-primary);">■ ROUTINE_SCAN_OK</span><span style="color:var(--text-muted)">07:00Z</span></div>
+          </div>
+          <button style="background:#141824; border:1px solid var(--border-bright); color:var(--text-dim); padding:8px; border-radius:2px; font-family:var(--font-mono); font-size:0.7rem; font-weight:700; cursor:pointer; margin-top:4px;">
+            ACKNOWLEDGE ALL
+          </button>
+        </div>
+      </div>
+
+      <!-- Right Column (7 cols) -->
+      <div style="grid-column: span 7; display: flex; flex-direction: column; gap: 16px;">
+        <!-- TACTICAL MAP VIEW -->
+        <div class="tac-card" style="padding:12px;">
+          <div class="card-header" style="margin-bottom:8px;">
+            <span class="card-title">┌─ TACTICAL_MAP_VIEW :: SECTOR_A ─┐</span>
+            <span style="font-size:0.65rem; color:var(--cyan-primary);">MODE: SCHEMATIC</span>
+          </div>
+          <div class="map-canvas-container">
+            <canvas id="tactical-canvas"></canvas>
+          </div>
+          <div class="stat-subtext" style="margin-top:6px;">
+            <span>ZOOM: 14.5x • PITCH: 45°</span>
+            <span>● COORD: 35.6895° N, 139.6917° E</span>
+          </div>
+        </div>
+
+        <!-- ACTIVE LOGISTICS ROUTES -->
+        <div class="tac-card">
+          <div class="card-header">
+            <span class="card-title">ACTIVE_LOGISTICS_ROUTES</span>
+            <span style="font-size:0.65rem; color:var(--cyan-primary);">■ DATALINK_LIVE</span>
+          </div>
+          <table class="tac-table">
+            <thead>
+              <tr><th>ID_TAG</th><th>CLASS</th><th>DESTINATION</th><th>T_MINUS</th><th>SYS_STATE</th></tr>
+            </thead>
+            <tbody>
+              <tr><td style="color:var(--cyan-primary);">■ TR-992</td><td>HEAVY_FREIGHT</td><td>SECTOR_G</td><td>14:02</td><td><span class="badge-nominal">EN_ROUTE</span></td></tr>
+              <tr><td style="color:var(--cyan-primary);">■ DR-041</td><td>AERIAL_DRONE</td><td>MEDICAL_BAY_3</td><td>01:45</td><td><span class="badge-nominal">EN_ROUTE</span></td></tr>
+              <tr><td style="color:var(--orange-primary);">■ TR-105</td><td>MAINTENANCE</td><td>SUB_LEVEL_4</td><td>HOLD</td><td><span class="badge-delayed">DELAYED</span></td></tr>
+              <tr><td style="color:var(--cyan-primary);">■ CV-884</td><td>PASSENGER</td><td>CITY_CENTER</td><td>05:12</td><td><span class="badge-nominal">EN_ROUTE</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  `;
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // SCREEN 2: CITIZEN_DB_V4.2 (Screenshot 2 Match)
+    // ─────────────────────────────────────────────────────────────
+    function renderCitizensHTML() {
+      const citizens = cachedCitizens.length ? cachedCitizens.slice(0, 10) : [
+        { id: 'CTX-9901', name: 'ALDEN_VANCE', sector: 'SEC_4', status: 'NOMINAL', role: 'Cyber Architect' },
+        { id: 'CTX-4428', name: 'BRIX_CORSO', sector: 'SEC_1', status: 'MONITORED', role: 'Security Agent' },
+        { id: 'CTX-1102', name: 'CORA_VEX', sector: 'SEC_2', status: 'NOMINAL', role: 'Data Scientist' },
+        { id: 'CTX-8834', name: 'DANE_HOLLOW', sector: 'SEC_4', status: 'OFFLINE', role: 'Technician' },
+        { id: 'CTX-5519', name: 'ELARA_FINN', sector: 'SEC_3', status: 'NOMINAL', role: 'Medical Officer' },
+        { id: 'CTX-2290', name: 'FEN_RADER', sector: 'SEC_1', status: 'NOMINAL', role: 'Robotics Engineer' },
+      ];
+
+      return `
+    <div class="tactical-grid">
+      <!-- Left Table (7 cols) -->
+      <div class="tac-card" style="grid-column: span 7;">
+        <div class="card-header">
+          <input type="text" placeholder="🔍 QUERY_ID_OR_NAME" style="background:#090b10; border:1px solid var(--border-bright); color:#fff; padding:6px 12px; font-family:var(--font-mono); font-size:0.75rem; border-radius:2px; width:65%;">
+          <button style="background:var(--orange-primary); border:none; color:#000; font-weight:800; font-family:var(--font-mono); font-size:0.7rem; padding:6px 14px; border-radius:2px; cursor:pointer;">≡ FILTER</button>
+        </div>
+        <table class="tac-table">
+          <thead>
+            <tr><th>CITIZEN_ID</th><th>DESIGNATION</th><th>SECTOR</th><th>STATUS</th></tr>
+          </thead>
+          <tbody>
+            ${citizens.map((c, i) => `
+              <tr style="cursor:pointer;" onclick="selectCitizen('${c.id}', '${c.name}', '${c.role || 'Citizen'}')">
+                <td style="color:var(--cyan-primary); font-weight:700;">${c.id}</td>
+                <td style="font-weight:700; color:#fff;">${c.name}</td>
+                <td>${c.sector || 'SEC_1'}</td>
+                <td><span class="${c.status === 'NOMINAL' ? 'badge-nominal' : (c.status === 'MONITORED' ? 'badge-monitored' : 'badge-delayed')}">${c.status || 'NOMINAL'}</span></td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Right Radar Inspector (5 cols) -->
+      <div class="tac-card" style="grid-column: span 5; display:flex; flex-direction:column; gap:14px;">
+        <div class="card-header">
+          <span class="card-title" style="color:var(--orange-primary);">INSPECT_MODE_ACTIVE</span>
+          <span style="font-size:0.65rem; color:var(--text-muted);">CLEARANCE: L5</span>
+        </div>
+        <div id="insp-citizen-name" style="font-family:var(--font-display); font-size:1.3rem; font-weight:800; color:#fff;">ALDEN_VANCE</div>
+        <div id="insp-citizen-role" style="font-size:0.75rem; color:var(--cyan-primary);">OCCUPATION: Cyber Architect</div>
+
+        <div style="height:200px; position:relative;">
+          <canvas id="citizen-radar"></canvas>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:8px; margin-top:8px;">
+          <button style="background:var(--orange-primary); color:#000; border:none; padding:10px; font-family:var(--font-display); font-weight:800; font-size:0.82rem; border-radius:2px; cursor:pointer;">
+            INITIATE_COMMS
+          </button>
+          <button style="background:#141824; color:var(--red-alert); border:1px solid var(--border-bright); padding:8px; font-family:var(--font-mono); font-size:0.7rem; font-weight:700; border-radius:2px; cursor:pointer;">
+            FLAG_FOR_REVIEW
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // SCREEN 3: GOVT_COMMAND (Screenshot 3 Match)
+    // ─────────────────────────────────────────────────────────────
+    function renderGovernmentHTML() {
+      return `
+    <div class="tactical-grid">
+      <!-- Left Column (5 cols) -->
+      <div style="grid-column: span 5; display:flex; flex-direction:column; gap:16px;">
+        <!-- APPROVAL RATING -->
+        <div class="tac-card">
+          <div class="card-header">
+            <span class="card-title">📈 APPROVAL_RATING</span>
+          </div>
+          <div style="text-align:center; padding:10px 0;">
+            <div class="metric-huge" style="color:var(--orange-primary); font-size:2.8rem;">68%</div>
+            <div style="font-size:0.72rem; color:var(--cyan-primary); margin-top:4px;">+2.4% THIS CYCLE</div>
+          </div>
+        </div>
+
+        <!-- ACTIVE DIRECTIVES -->
+        <div class="tac-card">
+          <div class="card-header">
+            <span class="card-title" style="color:var(--cyan-primary);">🛡️ ACTIVE_DIRECTIVES</span>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            <div class="tac-switch">
+              <div><div class="switch-label">FREE_PUBLIC_TRANSIT</div><div class="switch-sub">SUBSIDY: 45M/YR</div></div>
+              <button class="switch-btn on">ON</button>
+            </div>
+            <div class="tac-switch">
+              <div><div class="switch-label">CONGESTION_TAX</div><div class="switch-sub">REVENUE: --</div></div>
+              <button class="switch-btn">OFF</button>
+            </div>
+            <div class="tac-switch">
+              <div><div class="switch-label">GREEN_ENERGY_SUB</div><div class="switch-sub">SUBSIDY: 120M/YR</div></div>
+              <button class="switch-btn on">ON</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column (7 cols) -->
+      <div style="grid-column: span 7; display:flex; flex-direction:column; gap:16px;">
+        <!-- BUDGET ALLOCATION -->
+        <div class="tac-card">
+          <div class="card-header">
+            <span class="card-title">BUDGET_ALLOCATION_MATRIX</span>
+            <span style="font-size:0.7rem; color:var(--orange-primary); font-weight:800;">TOTAL: 4.2B CR</span>
+          </div>
+          
+          <div style="display:flex; flex-direction:column; gap:12px; margin-top:4px;">
+            <div>
+              <div class="stat-subtext"><span>HEALTHCARE</span><span>1.2B CR (28%)</span></div>
+              <div style="height:10px; background:#182030; border-radius:2px; margin-top:4px;"><div style="width:28%; height:100%; background:var(--cyan-primary);"></div></div>
+            </div>
+            <div>
+              <div class="stat-subtext"><span style="color:var(--orange-primary);">INFRASTRUCTURE</span><span>1.8B CR (42%)</span></div>
+              <div style="height:10px; background:#182030; border-radius:2px; margin-top:4px;">
+                <div style="width:42%; height:100%; background:repeating-linear-gradient(45deg, var(--orange-primary), var(--orange-primary) 6px, #111 6px, #111 12px);"></div>
+              </div>
+            </div>
+            <div>
+              <div class="stat-subtext"><span>EDUCATION</span><span>0.8B CR (19%)</span></div>
+              <div style="height:10px; background:#182030; border-radius:2px; margin-top:4px;"><div style="width:19%; height:100%; background:#94a3b8;"></div></div>
+            </div>
+            <div>
+              <div class="stat-subtext"><span>RESERVE</span><span>0.4B CR (11%)</span></div>
+              <div style="height:10px; background:#182030; border-radius:2px; margin-top:4px;"><div style="width:11%; height:100%; background:#475569;"></div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- LEGISLATIVE QUEUE -->
+        <div class="tac-card">
+          <div class="card-header">
+            <span class="card-title">LEGISLATIVE_QUEUE</span>
+          </div>
+          <table class="tac-table">
+            <thead>
+              <tr><th>ID</th><th>PROPOSAL</th><th>EST_COST</th><th>STATUS</th></tr>
+            </thead>
+            <tbody>
+              <tr><td style="color:var(--cyan-primary);">L-094</td><td style="color:#fff;">Zoning Expansion Sector 4</td><td>-12M</td><td><span class="badge-monitored">VOTE_PEND</span></td></tr>
+              <tr><td style="color:var(--cyan-primary);">L-095</td><td style="color:#fff;">AI Surveillance Grid Mk II</td><td>450M</td><td><span class="badge-nominal">DRAFTING</span></td></tr>
+              <tr><td style="color:var(--cyan-primary);">L-096</td><td style="color:#fff;">Water Reclamation Mandate</td><td>85M</td><td><span class="badge-monitored">VOTE_PEND</span></td></tr>
+              <tr><td style="color:var(--cyan-primary);">L-097</td><td style="color:#fff;">Corporate Tax Reduction</td><td>--</td><td><span style="color:var(--text-muted);">VETOED</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  `;
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // SCREEN 4: PANDEMIC MONITOR (Screenshot 4 Match)
+    // ─────────────────────────────────────────────────────────────
+    function renderPandemicHTML() {
+      return `
+    <div class="tactical-grid">
+      <!-- Left Critical Metrics (4 cols) -->
+      <div style="grid-column: span 4; display:flex; flex-direction:column; gap:16px;">
+        <div class="tac-card">
+          <div class="card-header"><span class="card-title">CRITICAL_METRICS</span></div>
+          <div style="margin-bottom:12px;">
+            <div style="font-size:0.65rem; color:var(--text-dim);">R0_RATE</div>
+            <div style="font-size:0.75rem; color:#fff;">Basic Reproduction</div>
+            <div class="metric-huge" style="color:var(--cyan-primary); font-size:2rem;">0.84</div>
+          </div>
+          <div style="margin-bottom:12px;">
+            <div style="font-size:0.65rem; color:var(--text-dim);">ICU_UTILIZATION</div>
+            <div style="font-size:0.75rem; color:#fff;">Capacity Load</div>
+            <div class="metric-huge" style="color:var(--orange-primary); font-size:2rem;">62%</div>
+          </div>
+          <div>
+            <div style="font-size:0.65rem; color:var(--text-dim);">VACCINATION_RATE</div>
+            <div style="font-size:0.75rem; color:#fff;">Pop. Coverage</div>
+            <div class="metric-huge" style="color:var(--cyan-primary); font-size:2rem;">78%</div>
+          </div>
+        </div>
+
+        <div class="tac-card">
+          <div class="card-header"><span class="card-title">ACTIVE_INTERVENTIONS</span></div>
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            <div class="tac-switch"><div><div class="switch-label">😷 Mask Mandate</div></div><button class="switch-btn">OFF</button></div>
+            <div class="tac-switch"><div><div class="switch-label" style="color:var(--orange-primary);">🔒 Lockdown Protocol</div></div><button class="switch-btn on">ON</button></div>
+            <div class="tac-switch"><div><div class="switch-label">💉 Vaccine Drive</div></div><button class="switch-btn">OFF</button></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right SEIR Curve & Surge (8 cols) -->
+      <div style="grid-column: span 8; display:flex; flex-direction:column; gap:16px;">
+        <div class="tac-card">
+          <div class="card-header">
+            <span class="card-title">SEIR_EPIDEMIOLOGICAL_CURVE</span>
+            <span style="font-size:0.65rem; color:var(--text-muted);">T-90_DAYS</span>
+          </div>
+          <div style="height:210px; position:relative;">
+            <canvas id="seir-chart"></canvas>
+          </div>
+        </div>
+
+        <div class="tac-card">
+          <div class="card-header">
+            <span class="card-title">HOSPITAL_SURGE_MONITOR</span>
+            <span style="font-size:0.65rem; color:var(--text-dim);">FACILITIES: 08</span>
+          </div>
+          <table class="tac-table">
+            <thead>
+              <tr><th>FACILITY_ID</th><th>ZONE</th><th>CAPACITY</th><th>ICU_LOAD</th><th>STATUS</th></tr>
+            </thead>
+            <tbody>
+              <tr><td style="color:#fff;">HOSP-ALPHA-01</td><td>SECTOR_7G</td><td>84%</td><td style="color:var(--orange-primary);">92%</td><td><span class="badge-monitored">CRITICAL</span></td></tr>
+              <tr><td style="color:#fff;">HOSP-BETA-02</td><td>NORTH_RIDGE</td><td>61%</td><td>45%</td><td><span class="badge-nominal">NOMINAL</span></td></tr>
+              <tr><td style="color:#fff;">CLINIC-GAMMA-09</td><td>DOWNTOWN</td><td>98%</td><td style="color:var(--red-alert);">100%</td><td><span class="badge-delayed">OVERFLOW</span></td></tr>
+              <tr><td style="color:#fff;">HOSP-DELTA-04</td><td>EAST_PORT</td><td>42%</td><td>38%</td><td><span class="badge-nominal">NOMINAL</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  `;
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // SCREEN 5: AI AGENT EVALUATION SANDBOX (Tactical Edition)
+    // ─────────────────────────────────────────────────────────────
+    function renderSandboxHTML() {
+      return `
+    <div class="tactical-grid">
+      <!-- Config Left (5 cols) -->
+      <div class="tac-card" style="grid-column: span 5; display:flex; flex-direction:column; gap:12px;">
+        <div class="card-header">
+          <span class="card-title">🔌 MODEL & SCHEMA CONNECTOR</span>
+          <span class="card-uid">PRE_DEPLOY</span>
+        </div>
+        
+        <div>
+          <label style="font-size:0.68rem; color:var(--text-dim);">AGENT_NAME</label>
+          <input type="text" id="sb-agent-name" value="CardioRisk-Predictor v3.2" style="width:100%; background:#090b10; border:1px solid var(--border-bright); color:#fff; padding:6px 10px; font-family:var(--font-mono); font-size:0.75rem; border-radius:2px; margin-top:4px;">
+        </div>
+
+        <div>
+          <label style="font-size:0.68rem; color:var(--text-dim);">TARGET_FEATURE_SCHEMA</label>
+          <select id="sb-schema" style="width:100%; background:#090b10; border:1px solid var(--border-bright); color:#fff; padding:6px 10px; font-family:var(--font-mono); font-size:0.75rem; border-radius:2px; margin-top:4px;">
+            <option value="cardiology_uci">❤️ Cardiology (UCI 13 Biomarkers: trestbps, chol, thalach...)</option>
+            <option value="credit_lending">💳 Credit & Lending (DTI, Credit Score, Savings...)</option>
+            <option value="real_estate_housing">🏠 Real Estate & Housing (Budget, Downpayment, Sqft...)</option>
+          </select>
+        </div>
+
+        <div>
+          <label style="font-size:0.68rem; color:var(--text-dim);">DEMOGRAPHIC_COHORT</label>
+          <select id="sb-cohort" style="width:100%; background:#090b10; border:1px solid var(--border-bright); color:#fff; padding:6px 10px; font-family:var(--font-mono); font-size:0.75rem; border-radius:2px; margin-top:4px;">
+            <option value="balanced_general">🌆 Balanced Metro Population</option>
+            <option value="senior_population">👵 Senior Citizens (60+)</option>
+            <option value="low_income_high_debt">💳 Low-Income & High DTI</option>
+            <option value="adversarial_edge_cases">🔥 Adversarial Edge-Case Stress</option>
+          </select>
+        </div>
+
+        <div style="display:flex; gap:12px;">
+          <div style="flex:1;">
+            <label style="font-size:0.68rem; color:var(--text-dim);">SAMPLE_SIZE</label>
+            <input type="number" id="sb-sample" value="500" style="width:100%; background:#090b10; border:1px solid var(--border-bright); color:#fff; padding:6px 10px; font-family:var(--font-mono); font-size:0.75rem; border-radius:2px; margin-top:4px;">
+          </div>
+          <div style="flex:1;">
+            <label style="font-size:0.68rem; color:var(--text-dim);">HORIZON</label>
+            <select id="sb-horizon" style="width:100%; background:#090b10; border:1px solid var(--border-bright); color:#fff; padding:6px 10px; font-family:var(--font-mono); font-size:0.75rem; border-radius:2px; margin-top:4px;">
+              <option value="30">30 Days</option>
+              <option value="90" selected>90 Days</option>
+              <option value="180">180 Days</option>
+              <option value="365">365 Days</option>
+            </select>
+          </div>
+        </div>
+
+        <button onclick="runAgentTest()" id="btn-run-eval" style="background:var(--cyan-primary); color:#000; border:none; padding:12px; font-family:var(--font-display); font-weight:800; font-size:0.85rem; border-radius:2px; cursor:pointer; box-shadow:0 0 14px var(--cyan-glow); margin-top:6px;">
+          🚀 RUN BEHAVIORAL EVALUATION & DRIFT
+        </button>
+      </div>
+
+      <!-- Results Right (7 cols) -->
+      <div id="sb-results-panel" style="grid-column: span 7; display:flex; flex-direction:column; gap:16px;">
+        <div class="tac-card">
+          <div class="card-header">
+            <span class="card-title">BEHAVIORAL & LONGITUDINAL SCORECARD</span>
+            <span style="font-size:0.65rem; color:var(--cyan-primary);">STATUS: READY</span>
+          </div>
+          <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:10px; text-align:center;">
+            <div style="background:#0a0d14; padding:10px; border-radius:2px;">
+              <div style="font-size:0.65rem; color:var(--text-dim);">ADOPTION</div>
+              <div class="metric-huge" style="color:var(--cyan-primary); font-size:1.4rem;">84.6%</div>
+            </div>
+            <div style="background:#0a0d14; padding:10px; border-radius:2px;">
+              <div style="font-size:0.65rem; color:var(--text-dim);">TRUST</div>
+              <div class="metric-huge" style="color:var(--cyan-primary); font-size:1.4rem;">0.81</div>
+            </div>
+            <div style="background:#0a0d14; padding:10px; border-radius:2px;">
+              <div style="font-size:0.65rem; color:var(--text-dim);">ROBUSTNESS</div>
+              <div class="metric-huge" style="color:var(--orange-primary); font-size:1.4rem;">92.4%</div>
+            </div>
+            <div style="background:#0a0d14; padding:10px; border-radius:2px;">
+              <div style="font-size:0.65rem; color:var(--text-dim);">FAIRNESS</div>
+              <div class="metric-huge" style="color:var(--cyan-primary); font-size:1.4rem;">0.89</div>
+            </div>
+          </div>
+          <div style="font-size:0.75rem; color:var(--text-dim); background:#0a0d14; padding:10px; border-radius:2px; margin-top:8px;">
+            💡 <b>Synthesis</b>: Model demonstrates high clinical adherence (84.6%) across general cohorts, with minor adherence decay (-12%) observed in seniors past day 60.
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // GENERIC MODULE TEMPLATE (FOR REMAINING TABS)
+    // ─────────────────────────────────────────────────────────────
+    function renderGenericModuleHTML(mod) {
+      return `
+    <div class="tactical-grid">
+      <div class="tac-card" style="grid-column: span 8;">
+        <div class="card-header">
+          <span class="card-title">${mod.icon} ${mod.name}_TELEMETRY_STREAM</span>
+          <span style="font-size:0.65rem; color:var(--cyan-primary);">STATUS: ACTIVE</span>
+        </div>
+        <div style="height:220px; display:flex; align-items:center; justify-content:center; background:#080a0f; border:1px solid var(--border-dim); border-radius:2px; color:var(--cyan-primary); font-size:0.85rem; font-weight:700;">
+          [ LIVE ${mod.name} SENSOR DATA LINK ACTIVE • 60 FPS ]
+        </div>
+      </div>
+
+      <div class="tac-card" style="grid-column: span 4;">
+        <div class="card-header">
+          <span class="card-title">STATUS_METRICS</span>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <div class="stat-subtext"><span>EFFICIENCY</span><span style="color:var(--cyan-primary);">96.4%</span></div>
+          <div class="stat-subtext"><span>ANOMALY_INDEX</span><span style="color:var(--green-nominal);">0.02 (LOW)</span></div>
+          <div class="stat-subtext"><span>ACTIVE_AGENTS</span><span style="color:#fff;">1,420</span></div>
+        </div>
+      </div>
+    </div>
+  `;
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // INTERACTIVE CHARTS & CANVASES
+    // ─────────────────────────────────────────────────────────────
+    function initTacticalCanvas() {
+      const canvas = document.getElementById('tactical-canvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      canvas.width = canvas.parentElement.clientWidth;
+      canvas.height = canvas.parentElement.clientHeight;
+
+      ctx.fillStyle = '#080a0f';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Draw Grid
+      ctx.strokeStyle = 'rgba(0, 229, 255, 0.12)';
+      ctx.lineWidth = 1;
+      const step = 28;
+      for (let x = 0; x < canvas.width; x += step) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke(); }
+      for (let y = 0; y < canvas.height; y += step) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke(); }
+
+      // Draw Tactical Polygons
+      ctx.strokeStyle = 'rgba(0, 229, 255, 0.45)';
+      ctx.beginPath();
+      ctx.moveTo(60, 40); ctx.lineTo(160, 30); ctx.lineTo(190, 140); ctx.lineTo(90, 160); ctx.closePath();
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(220, 50); ctx.lineTo(340, 70); ctx.lineTo(320, 180); ctx.lineTo(210, 150); ctx.closePath();
+      ctx.stroke();
+
+      // Draw Incident Pin
+      ctx.fillStyle = '#ff6600';
+      ctx.fillRect(180, 80, 10, 10);
+      ctx.strokeStyle = '#ff6600';
+      ctx.strokeRect(175, 75, 20, 20);
+      ctx.fillStyle = '#fff';
+      ctx.font = '9px JetBrains Mono';
+      ctx.fillText('INCIDENT_04', 205, 88);
+
+      // Draw Active Node
+      ctx.fillStyle = '#00e5ff';
+      ctx.beginPath(); ctx.arc(280, 120, 5, 0, Math.PI * 2); ctx.fill();
+      ctx.fillText('NODE_ACTIVE', 295, 124);
+    }
+
+    function initRadarChart() {
+      const ctx = document.getElementById('citizen-radar');
+      if (!ctx) return;
+      new Chart(ctx, {
+        type: 'radar',
+        data: {
+          labels: ['INT', 'STR', 'END', 'AGI', 'PER'],
+          datasets: [{
+            label: 'STATS',
+            data: [88, 55, 70, 82, 94],
+            backgroundColor: 'rgba(0, 229, 255, 0.15)',
+            borderColor: '#00e5ff',
+            borderWidth: 2,
+            pointBackgroundColor: '#00e5ff',
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            r: {
+              grid: { color: '#1a2233' },
+              angleLines: { color: '#1a2233' },
+              pointLabels: { color: '#00e5ff', font: { family: 'JetBrains Mono', size: 10 } },
+              ticks: { display: false }
+            }
+          },
+          plugins: { legend: { display: false } }
+        }
+      });
+    }
+
+    function initSEIRChart() {
+      const ctx = document.getElementById('seir-chart');
+      if (!ctx) return;
+      const days = Array.from({ length: 30 }, (_, i) => `D+${i * 3}`);
+      new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: days,
+          datasets: [
+            { label: 'SUSCEPTIBLE', data: [98, 92, 80, 62, 44, 30, 20, 14, 10, 8], borderColor: '#00e5ff', borderDash: [4, 4], pointRadius: 0 },
+            { label: 'EXPOSED', data: [2, 6, 15, 24, 28, 22, 14, 8, 4, 2], borderColor: '#a16207', pointRadius: 0 },
+            { label: 'INFECTED', data: [0, 2, 8, 20, 36, 42, 32, 18, 9, 4], borderColor: '#ff6600', borderWidth: 2, pointRadius: 0 },
+            { label: 'RECOVERED', data: [0, 0, 2, 8, 18, 34, 52, 68, 80, 88], borderColor: '#ffffff', pointRadius: 0 },
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: { grid: { color: '#141a24' }, ticks: { color: '#64748b', font: { family: 'JetBrains Mono', size: 9 } } },
+            y: { grid: { color: '#141a24' }, ticks: { color: '#64748b', font: { family: 'JetBrains Mono', size: 9 } } }
+          },
+          plugins: { legend: { labels: { color: '#cbd5e1', font: { family: 'JetBrains Mono', size: 10 } } } }
+        }
+      });
+    }
+
+    function selectCitizen(id, name, role) {
+      const nameEl = document.getElementById('insp-citizen-name');
+      const roleEl = document.getElementById('insp-citizen-role');
+      if (nameEl) nameEl.textContent = name;
+      if (roleEl) roleEl.textContent = `OCCUPATION: ${role}`;
+    }
+
+    async function runAgentTest() {
+      const btn = document.getElementById('btn-run-eval');
+      btn.disabled = true;
+      btn.textContent = 'RUNNING EVALUATION...';
+
+      try {
+        const payload = {
+          agent_name: document.getElementById('sb-agent-name').value,
+          domain_preset: document.getElementById('sb-schema').value,
+          protocol: 'mock_benchmark',
+          cohort_distribution: document.getElementById('sb-cohort').value,
+          sample_size: parseInt(document.getElementById('sb-sample').value) || 500,
+          simulation_horizon_days: parseInt(document.getElementById('sb-horizon').value) || 90,
+        };
+        const res = await fetch(API + '/api/eval/run-test', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+          const data = await res.json();
+          alert(`Evaluation complete! Adoption: ${data.overall_adoption_rate}%, Trust: ${data.avg_trust_index}`);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '🚀 RUN BEHAVIORAL EVALUATION & DRIFT';
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // DATA SYNC LOOP
+    // ─────────────────────────────────────────────────────────────
+    async function pollData() {
+      try {
+        const [status, metrics, citizens] = await Promise.all([
+          fetch(API + '/api/simulation/status').then(r => r.json()).catch(() => null),
+          fetch(API + '/api/analytics/metrics').then(r => r.json()).catch(() => null),
+          fetch(API + '/api/citizens/?limit=100').then(r => r.json()).catch(() => null),
+        ]);
+
+        if (status) {
+          document.getElementById('tel-tick').textContent = String(status.current_tick || 0).padStart(6, '0');
+          document.getElementById('tel-pop').textContent = (status.population || 10000).toLocaleString();
+        }
+        if (metrics) cachedMetrics = metrics;
+        if (citizens) cachedCitizens = citizens;
+      } catch (e) { }
+    }
+
+    setInterval(pollData, 3000);
+    pollData().then(() => renderActiveView());
+  </script>
+</body>
+
+</html>

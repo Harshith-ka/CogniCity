@@ -38,6 +38,10 @@ class PoliceUnit(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(100))
     district_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("districts.id"), nullable=True)
+    # Exact sim-world placement — nullable for pre-existing/auto-generated units that
+    # only ever had a district; a manually placed one (via Build Mode) always sets these.
+    x: Mapped[float | None] = mapped_column(Float, nullable=True)
+    y: Mapped[float | None] = mapped_column(Float, nullable=True)
     officers: Mapped[int] = mapped_column(Integer, default=10)
     capacity: Mapped[int] = mapped_column(Integer, default=20)
     effectiveness: Mapped[float] = mapped_column(Float, default=0.7)

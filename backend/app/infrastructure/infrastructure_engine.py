@@ -19,6 +19,9 @@ from backend.app.models.city import District, Location, Building, LocationType, 
 from backend.app.models.infrastructure import UtilityGrid, InfraProject
 from backend.app.models.healthcare import Hospital
 from backend.app.models.education import School
+from backend.app.models.crime import PoliceUnit
+from backend.app.models.emergency_services import FireStation
+from backend.app.infrastructure.config import INFRASTRUCTURE_CONFIG
 
 log = structlog.get_logger()
 
@@ -26,17 +29,44 @@ UTILITY_TYPES = ["power", "water", "internet", "gas"]
 
 # Every triggerable project type, autonomous or manual. impact_reliability/impact_capacity
 # only matter for utility-grid maintenance types; build types leave them at 0 and instead
-# create real Hospital/School/Location+Building rows on completion (see _process_projects).
-BUILD_PRESETS = {
+# create real Hospital/School/PoliceUnit/FireStation/Location+Building rows on completion
+# (see _process_projects). The staff/capacity range for each build type comes from the
+# same INFRASTRUCTURE_CONFIG the frontend Build Mode UI reads — one source of truth.
+STAFF_ON_COMPLETION = {
+    "hospital_build": {"role": "hospital staff (doctors, nurses, support)", "min": 40, "max": 90},
+    "school_build": {"role": "teachers", "min": 10, "max": 25},
+    "fire_station_build": {"role": "firefighters", "min": 12, "max": 25},
+    "police_station_build": {"role": "officers", "min": 10, "max": 22},
+}
+
+# Utility-grid maintenance presets — a different category from the Build Mode placement
+# types below (no exact x/y placement, just district-wide reliability/capacity bumps).
+_UTILITY_PRESETS = {
     "road_repair":      {"name": "Road Resurfacing",       "budget": 50000,  "impact_reliability": 0.05, "impact_capacity": 0.0},
     "grid_upgrade":      {"name": "Grid Modernization",     "budget": 150000, "impact_reliability": 0.1,  "impact_capacity": 200.0},
     "pipe_replacement":  {"name": "Water Pipe Replacement", "budget": 80000,  "impact_reliability": 0.08, "impact_capacity": 100.0},
     "fiber_install":     {"name": "Fiber Optic Install",    "budget": 120000, "impact_reliability": 0.12, "impact_capacity": 500.0},
-    "bridge_build":      {"name": "Bridge",                 "budget": 200000, "impact_reliability": 0.06, "impact_capacity": 0.0},
-    "hospital_build":    {"name": "Hospital",               "budget": 600000, "impact_reliability": 0.0,  "impact_capacity": 0.0},
-    "school_build":      {"name": "School",                 "budget": 400000, "impact_reliability": 0.0,  "impact_capacity": 0.0},
-    "colony_build":      {"name": "Residential Colony",     "budget": 800000, "impact_reliability": 0.0,  "impact_capacity": 0.0},
-    "road_build":        {"name": "New Road",               "budget": 250000, "impact_reliability": 0.02, "impact_capacity": 0.0},
+}
+
+# Build Mode placement types — impact_reliability values preserved from before this was
+# derived from config; budget now comes from INFRASTRUCTURE_CONFIG.construction_cost so
+# it can't drift out of sync between the trigger economics and what the UI shows/quotes.
+_BUILD_IMPACT_RELIABILITY = {
+    "bridge_build": 0.06, "hospital_build": 0.0, "school_build": 0.0,
+    "colony_build": 0.0, "road_build": 0.02, "fire_station_build": 0.0, "police_station_build": 0.0,
+}
+
+BUILD_PRESETS = {
+    **_UTILITY_PRESETS,
+    **{
+        key: {
+            "name": cfg.name,
+            "budget": cfg.construction_cost,
+            "impact_reliability": _BUILD_IMPACT_RELIABILITY.get(key, 0.0),
+            "impact_capacity": 0.0,
+        }
+        for key, cfg in INFRASTRUCTURE_CONFIG.items()
+    },
 }
 
 # The subset the government AI itself picks from at random, unprompted, every ~40 ticks.
@@ -133,6 +163,10 @@ class InfrastructureEngine:
                     await self._complete_school_build(project)
                 elif project.project_type == "colony_build":
                     await self._complete_colony_build(project)
+                elif project.project_type == "fire_station_build":
+                    await self._complete_fire_station_build(project)
+                elif project.project_type == "police_station_build":
+                    await self._complete_police_station_build(project)
 
                 stats["projects_completed"] += 1
                 log.info("infra_project_completed", name=project.name, type=project.project_type)
@@ -147,6 +181,7 @@ class InfrastructureEngine:
             name=f"{district_name} Community Hospital" if district_name else "New Community Hospital",
             hospital_type=random.choice(["general", "emergency", "clinic"]),
             district_id=project.district_id,
+            x=project.x, y=project.y,
             total_beds=random.randint(80, 180),
             icu_beds=random.randint(8, 18),
             staff_count=random.randint(40, 90),
@@ -166,6 +201,7 @@ class InfrastructureEngine:
             name=f"{district_name} Community School" if district_name else "New Community School",
             school_type=random.choice(["elementary", "high_school", "vocational"]),
             district_id=project.district_id,
+            x=project.x, y=project.y,
             capacity=random.randint(150, 350),
             teachers=random.randint(10, 25),
             quality_rating=round(random.uniform(0.6, 0.9), 2),
@@ -174,6 +210,40 @@ class InfrastructureEngine:
         )
         self.db.add(school)
         log.info("school_built", name=school.name)
+
+    async def _complete_fire_station_build(self, project: InfraProject) -> None:
+        district_name = None
+        if project.district_id:
+            district = await self.db.get(District, project.district_id)
+            district_name = district.name if district else None
+
+        station = FireStation(
+            name=f"{district_name} Fire Station" if district_name else "New Fire Station",
+            district_id=project.district_id,
+            x=project.x, y=project.y,
+            firefighters=random.randint(12, 25),
+            response_capacity=random.randint(15, 30),
+            effectiveness=round(random.uniform(0.65, 0.9), 2),
+        )
+        self.db.add(station)
+        log.info("fire_station_built", name=station.name)
+
+    async def _complete_police_station_build(self, project: InfraProject) -> None:
+        district_name = None
+        if project.district_id:
+            district = await self.db.get(District, project.district_id)
+            district_name = district.name if district else None
+
+        unit = PoliceUnit(
+            name=f"{district_name} Police Station" if district_name else "New Police Station",
+            district_id=project.district_id,
+            x=project.x, y=project.y,
+            officers=random.randint(10, 22),
+            capacity=random.randint(15, 30),
+            effectiveness=round(random.uniform(0.65, 0.9), 2),
+        )
+        self.db.add(unit)
+        log.info("police_station_built", name=unit.name)
 
     async def _complete_colony_build(self, project: InfraProject) -> None:
         base_x = project.x if project.x is not None else 0.0

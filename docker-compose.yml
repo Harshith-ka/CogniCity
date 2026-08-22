@@ -54,6 +54,12 @@ services:
       NEO4J_PASSWORD: neo4j_pass
       QDRANT_HOST: qdrant
       QDRANT_PORT: 6333
+      # .env has OLLAMA_BASE_URL=localhost:11434 for native/host runs — inside this
+      # container "localhost" is the container itself, not the host machine where
+      # Ollama actually runs. host.docker.internal is Docker's way to reach the host.
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       postgres:
         condition: service_healthy

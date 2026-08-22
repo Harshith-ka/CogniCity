@@ -54,10 +54,37 @@ async def analyze_city(db: AsyncSession = Depends(get_db)):
 async def scenario_analysis(
     req: ScenarioRequest, db: AsyncSession = Depends(get_db)
 ):
+    """Free-text scenario — LLM estimate only, no grounded formula exists for
+    arbitrary natural language. Kept for anything outside the grounded presets below."""
     advisor = CityAdvisor(db)
     metrics = await _get_current_metrics(db)
     result = await advisor.scenario_analysis(metrics, req.scenario)
     return result or {"error": "Scenario analysis failed"}
+
+
+@router.get("/whatif/presets")
+async def whatif_presets():
+    from backend.app.services.whatif_scenarios import WHATIF_PRESETS
+    return WHATIF_PRESETS
+
+
+class WhatIfRunRequest(BaseModel):
+    key: str
+    params: dict = {}
+
+
+@router.post("/whatif/run")
+async def whatif_run(req: WhatIfRunRequest, db: AsyncSession = Depends(get_db)):
+    """Grounded what-if scenario — every number comes from the simulation's own live
+    formulas (or, for infrastructure, the same impact model the 3D Build Mode preview
+    uses), not an LLM guess. The LLM only phrases the plain-language summary of numbers
+    already computed here."""
+    from backend.app.services.whatif_scenarios import run_preset_scenario
+    try:
+        result = await run_preset_scenario(db, req.key, req.params)
+    except ValueError as err:
+        return {"error": str(err)}
+    return result.to_dict()
 
 
 @router.get("/report")
