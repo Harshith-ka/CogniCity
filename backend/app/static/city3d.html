@@ -1,0 +1,1141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>AI Digital Twin City — 3D View</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap');
+  :root {
+    --bg-deep: #0a0b10;
+    --border-soft: rgba(255,255,255,0.10);
+    --text-primary: #eceef5;
+    --text-muted: #9498ab;
+    --accent-indigo: #7c6cf6;
+    --accent-gold: #e8b94d;
+    --accent-green: #2dd4a7;
+    --accent-rose: #f0556f;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: var(--bg-deep); font-family: 'Inter', sans-serif; }
+  #scene-canvas { position: fixed; inset: 0; display: block; }
+
+  .hud {
+    position: fixed; top: 0; left: 0; right: 0;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 20px;
+    background: linear-gradient(180deg, rgba(10,11,16,0.85), transparent);
+    pointer-events: none;
+    z-index: 10;
+  }
+  .hud-left { display: flex; align-items: center; gap: 14px; pointer-events: auto; }
+  .hud-title { font-family: 'Sora', sans-serif; font-weight: 700; font-size: 1.15rem; color: var(--text-primary); letter-spacing: -0.01em; }
+  .hud-badge {
+    background: linear-gradient(135deg, var(--accent-gold), #c9922f);
+    color: #1a1206; padding: 3px 11px; border-radius: 14px;
+    font-size: 0.68rem; font-weight: 700; letter-spacing: 0.5px;
+  }
+  .back-link {
+    pointer-events: auto;
+    color: var(--text-primary); text-decoration: none;
+    background: rgba(255,255,255,0.06); border: 1px solid var(--border-soft);
+    padding: 7px 14px; border-radius: 9px; font-size: 0.82rem; font-weight: 500;
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+  .back-link:hover { border-color: var(--accent-indigo); background: rgba(124,108,246,0.12); }
+
+  .stat-strip {
+    position: fixed; top: 62px; left: 20px;
+    display: flex; gap: 8px; flex-wrap: wrap; max-width: 90vw;
+    pointer-events: none; z-index: 10;
+  }
+  .chip {
+    background: rgba(15,16,24,0.72); backdrop-filter: blur(8px);
+    border: 1px solid var(--border-soft); border-radius: 20px;
+    padding: 5px 13px; font-size: 0.76rem; color: var(--text-primary);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .chip .label { color: var(--text-muted); text-transform: uppercase; font-size: 0.63rem; letter-spacing: 0.6px; font-weight: 600; }
+
+  .legend {
+    position: fixed; bottom: 20px; left: 20px;
+    background: rgba(15,16,24,0.78); backdrop-filter: blur(8px);
+    border: 1px solid var(--border-soft); border-radius: 12px;
+    padding: 10px 14px; font-size: 0.74rem; color: var(--text-muted);
+    z-index: 10; max-width: 260px; line-height: 1.6;
+  }
+  .legend b { color: var(--text-primary); }
+  .legend .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; }
+
+  #loading {
+    position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+    flex-direction: column; gap: 14px; background: var(--bg-deep); z-index: 100;
+    color: var(--text-primary); font-family: 'Sora', sans-serif;
+  }
+  .spinner {
+    width: 44px; height: 44px; border-radius: 50%;
+    border: 3px solid rgba(124,108,246,0.2); border-top-color: var(--accent-indigo);
+    animation: spin 0.9s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  #tooltip {
+    position: fixed; display: none; pointer-events: none;
+    background: rgba(15,16,24,0.96); border: 1px solid rgba(124,108,246,0.45);
+    border-radius: 10px; padding: 9px 13px; font-size: 0.8rem; color: var(--text-primary);
+    line-height: 1.55; box-shadow: 0 10px 30px rgba(0,0,0,0.5); z-index: 20; max-width: 220px;
+  }
+  #tooltip .t-name { font-weight: 700; font-family: 'Sora', sans-serif; }
+  #tooltip .t-meta { color: var(--text-muted); font-size: 0.72rem; }
+
+  .hint {
+    position: fixed; bottom: 20px; right: 20px;
+    background: rgba(15,16,24,0.72); backdrop-filter: blur(8px);
+    border: 1px solid var(--border-soft); border-radius: 10px;
+    padding: 8px 13px; font-size: 0.72rem; color: var(--text-muted);
+    z-index: 10; pointer-events: none;
+  }
+</style>
+</head>
+<body>
+
+<div id="loading"><div class="spinner"></div><div>Loading the city…</div></div>
+<canvas id="scene-canvas"></canvas>
+
+<div class="hud">
+  <div class="hud-left">
+    <span class="hud-title">🏙️ AI Digital Twin City</span>
+    <span class="hud-badge">3D VIEW</span>
+  </div>
+  <a class="back-link" href="http://localhost:8501" target="_top">← Back to Dashboard</a>
+</div>
+
+<div class="stat-strip" id="stat-strip"></div>
+<div class="legend" id="legend">
+  <b>Mood colors</b><br/>
+  <span class="dot" style="background:#2dd4a7"></span>happy &nbsp;
+  <span class="dot" style="background:#f0a83c"></span>neutral &nbsp;
+  <span class="dot" style="background:#f0556f"></span>stressed<br/>
+  <span style="opacity:0.8">🏥 hospitals • 🏫 schools • 🚓 police • 🚧 government builds appear live</span><br/>
+  <span style="opacity:0.8">Drag to orbit • scroll to zoom • click a citizen</span>
+</div>
+<div class="hint">🌤 Lighting follows the simulation's time of day</div>
+<div id="tooltip"></div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { Sky } from 'three/addons/objects/Sky.js';
+
+const API = window.location.origin;
+const SCALE = 0.075;
+const world = (x, y) => [x * SCALE, y * SCALE];
+
+// ─────────────────────────────────────────────────────────────
+// Renderer / scene / camera
+// ─────────────────────────────────────────────────────────────
+const canvas = document.getElementById('scene-canvas');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 0.9;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.5, 3000);
+camera.position.set(210, 260, 400);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.maxPolarAngle = Math.PI * 0.49;
+controls.minDistance = 20;
+controls.maxDistance = 900;
+controls.target.set(0, 5, 0);
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// ─────────────────────────────────────────────────────────────
+// Sky + sun (day/night cycle driven by sim hour)
+// ─────────────────────────────────────────────────────────────
+const sky = new Sky();
+sky.scale.setScalar(4000);
+scene.add(sky);
+const sun = new THREE.Vector3();
+const skyUniforms = sky.material.uniforms;
+skyUniforms['turbidity'].value = 3.5;
+skyUniforms['rayleigh'].value = 1.2;
+skyUniforms['mieCoefficient'].value = 0.006;
+skyUniforms['mieDirectionalG'].value = 0.8;
+
+const sunLight = new THREE.DirectionalLight(0xffffff, 2.2);
+sunLight.castShadow = true;
+sunLight.shadow.mapSize.set(2048, 2048);
+sunLight.shadow.camera.left = -260;
+sunLight.shadow.camera.right = 260;
+sunLight.shadow.camera.top = 260;
+sunLight.shadow.camera.bottom = -260;
+sunLight.shadow.camera.near = 10;
+sunLight.shadow.camera.far = 900;
+sunLight.shadow.bias = -0.0015;
+scene.add(sunLight);
+scene.add(sunLight.target);
+
+const hemi = new THREE.HemisphereLight(0x9fc3ff, 0x2a2318, 0.55);
+scene.add(hemi);
+
+const moonLight = new THREE.DirectionalLight(0x6b7bd6, 0.0);
+scene.add(moonLight);
+
+const fog = new THREE.Fog(0x0a0b10, 260, 1000);
+scene.fog = fog;
+
+let nightFactor = 0; // 0 = full day, 1 = full night — drives window glow + fog color
+const buildingMaterials = []; // {mat, emissiveMap}
+
+function updateSunForHour(hour) {
+  const t = (hour / 24) * Math.PI * 2 - Math.PI / 2; // hour 6 -> straight up-ish
+  const elevation = Math.sin((hour - 6) / 12 * Math.PI); // peak at noon, trough at midnight
+  const azimuth = (hour / 24) * Math.PI * 2;
+
+  const phi = THREE.MathUtils.degToRad(90 - elevation * 90);
+  const theta = THREE.MathUtils.degToRad(azimuth * 57.2958);
+  sun.setFromSphericalCoords(1, phi, theta);
+  skyUniforms['sunPosition'].value.copy(sun);
+
+  const sunHeight = Math.max(-0.15, elevation);
+  sunLight.position.copy(sun).multiplyScalar(400);
+  sunLight.target.position.set(0, 0, 0);
+
+  const dayStrength = THREE.MathUtils.clamp((sunHeight + 0.08) / 0.5, 0, 1);
+  nightFactor = 1 - dayStrength;
+
+  sunLight.intensity = THREE.MathUtils.lerp(0.05, 2.4, dayStrength);
+  const warmth = THREE.MathUtils.clamp(1 - Math.abs(elevation), 0, 1);
+  sunLight.color.setHSL(0.11 - warmth * 0.05, 0.6, THREE.MathUtils.lerp(0.55, 0.85, dayStrength));
+
+  moonLight.intensity = THREE.MathUtils.lerp(0.35, 0, dayStrength);
+  moonLight.position.set(-sun.x * 400, Math.max(80, -sun.y * 400), -sun.z * 400);
+
+  hemi.intensity = THREE.MathUtils.lerp(0.18, 0.65, dayStrength);
+  renderer.toneMappingExposure = THREE.MathUtils.lerp(0.55, 0.95, dayStrength);
+
+  fog.color.setHSL(0.62, 0.35, THREE.MathUtils.lerp(0.05, 0.55, dayStrength * 0.6));
+  scene.background = null;
+
+  for (const b of buildingMaterials) {
+    b.mat.emissiveIntensity = THREE.MathUtils.lerp(0.05, 1.35, nightFactor) * b.baseGlow;
+  }
+}
+updateSunForHour(12);
+
+// ─────────────────────────────────────────────────────────────
+// Ground
+// ─────────────────────────────────────────────────────────────
+function makeGroundTexture() {
+  const c = document.createElement('canvas');
+  c.width = c.height = 512;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#23262f';
+  ctx.fillRect(0, 0, 512, 512);
+  ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+  for (let i = 0; i < 40; i++) {
+    ctx.beginPath();
+    ctx.moveTo(Math.random() * 512, Math.random() * 512);
+    ctx.lineTo(Math.random() * 512, Math.random() * 512);
+    ctx.lineWidth = Math.random() * 1.4;
+    ctx.stroke();
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(60, 60);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+const groundGeo = new THREE.PlaneGeometry(3600, 3600);
+const groundMat = new THREE.MeshStandardMaterial({ map: makeGroundTexture(), roughness: 1.0 });
+const ground = new THREE.Mesh(groundGeo, groundMat);
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground);
+
+// ─────────────────────────────────────────────────────────────
+// District zone tints + parks + roads (drawn once districts load)
+// ─────────────────────────────────────────────────────────────
+const DISTRICT_COLORS = {}; // name -> hue
+
+function addDistrictZone(d) {
+  const [cx, cy] = world(d.center_x, d.center_y);
+  const r = d.radius * SCALE;
+  const wealth = d.wealth_index ?? 0.5;
+  const hue = THREE.MathUtils.lerp(0.55, 0.32, wealth); // bluish (poor) -> green (wealthy)
+  const geo = new THREE.CircleGeometry(r, 48);
+  const mat = new THREE.MeshBasicMaterial({
+    color: new THREE.Color().setHSL(hue, 0.35, 0.16),
+    transparent: true, opacity: 0.35, depthWrite: false,
+  });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.rotation.x = -Math.PI / 2;
+  mesh.position.set(cx, 0.05, cy);
+  scene.add(mesh);
+
+  const label = makeTextSprite(d.name);
+  label.position.set(cx, 2, cy - r * 0.7);
+  scene.add(label);
+}
+
+function makeTextSprite(text) {
+  const c = document.createElement('canvas');
+  c.width = 512; c.height = 96;
+  const ctx = c.getContext('2d');
+  ctx.font = '600 44px Sora, sans-serif';
+  ctx.fillStyle = 'rgba(200,190,255,0.95)';
+  ctx.textAlign = 'center';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 10;
+  ctx.fillText(text, 256, 60);
+  const tex = new THREE.CanvasTexture(c);
+  const mat = new THREE.SpriteMaterial({ map: tex, depthWrite: false, transparent: true });
+  const sprite = new THREE.Sprite(mat);
+  sprite.scale.set(28, 5.2, 1);
+  return sprite;
+}
+
+const roadSegments = [];
+
+function addRoad(x1, y1, x2, y2) {
+  const dx = x2 - x1, dy = y2 - y1;
+  const len = Math.hypot(dx, dy);
+  if (len < 1) return;
+  roadSegments.push({ x1, y1, x2, y2, len });
+  const roadGeo = new THREE.PlaneGeometry(len, 3.2);
+  const c = document.createElement('canvas');
+  c.width = 256; c.height = 16;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#1b1c22';
+  ctx.fillRect(0, 0, 256, 16);
+  ctx.fillStyle = 'rgba(255,255,255,0.55)';
+  for (let i = 0; i < 256; i += 24) ctx.fillRect(i, 7, 12, 2);
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.repeat.set(len / 14, 1);
+  const roadMat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.9 });
+  const road = new THREE.Mesh(roadGeo, roadMat);
+  road.rotation.x = -Math.PI / 2;
+  road.rotation.z = -Math.atan2(dy, dx);
+  road.position.set((x1 + x2) / 2, 0.08, (y1 + y2) / 2);
+  road.receiveShadow = true;
+  scene.add(road);
+}
+
+// ─────────────────────────────────────────────────────────────
+// Buildings — procedural facade + window-glow textures
+// ─────────────────────────────────────────────────────────────
+const TYPE_STYLE = {
+  house:              { color: '#c9a27a', footprint: 6,  glow: 0.5, roof: true  },
+  apartment:          { color: '#b7b6ae', footprint: 11, glow: 0.7, roof: false },
+  office:             { color: '#6f93b8', footprint: 15, glow: 1.0, roof: false, glass: true },
+  shop:               { color: '#d9954f', footprint: 8,  glow: 0.8, roof: false },
+  restaurant:         { color: '#c97a5a', footprint: 8,  glow: 0.9, roof: false },
+  hospital:           { color: '#e9e9ee', footprint: 16, glow: 0.6, roof: false, accent: '#e0556f' },
+  school:             { color: '#a5553d', footprint: 14, glow: 0.5, roof: false },
+  university:         { color: '#8a4a3c', footprint: 18, glow: 0.6, roof: false },
+  gym:                { color: '#7f8a94', footprint: 10, glow: 0.5, roof: false },
+  factory:            { color: '#6c6f76', footprint: 18, glow: 0.3, roof: false, stack: true },
+  government_building:{ color: '#cfc6ae', footprint: 17, glow: 0.4, roof: false, columns: true },
+  police_station:     { color: '#5b6b91', footprint: 12, glow: 0.5, roof: false },
+  fire_station:       { color: '#a8433c', footprint: 12, glow: 0.5, roof: false },
+  metro_station:      { color: '#8f8f97', footprint: 7,  glow: 0.4, roof: false },
+  bus_stop:           { color: '#8f8f97', footprint: 3,  glow: 0.2, roof: false },
+  park:               { color: '#3c7a4e', footprint: 0,  glow: 0,   roof: false },
+};
+
+function makeFacadeTextures(style, floors) {
+  const w = 128, h = Math.max(128, Math.min(512, floors * 26));
+  const base = document.createElement('canvas'); base.width = w; base.height = h;
+  const glow = document.createElement('canvas'); glow.width = w; glow.height = h;
+  const bctx = base.getContext('2d');
+  const gctx = glow.getContext('2d');
+
+  bctx.fillStyle = style.color;
+  bctx.fillRect(0, 0, w, h);
+  gctx.fillStyle = '#000000';
+  gctx.fillRect(0, 0, w, h);
+
+  const rows = Math.max(2, Math.min(28, floors));
+  const cols = style.glass ? 6 : 4;
+  const cellW = w / cols, cellH = h / rows;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const wx = c * cellW + cellW * 0.18;
+      const wy = r * cellH + cellH * 0.22;
+      const ww = cellW * 0.64, wh = cellH * 0.56;
+      const lit = Math.random() < 0.38;
+      bctx.fillStyle = style.glass ? 'rgba(180,210,230,0.9)' : 'rgba(35,38,48,0.9)';
+      bctx.fillRect(wx, wy, ww, wh);
+      if (lit) {
+        gctx.fillStyle = '#ffdd94';
+        gctx.fillRect(wx, wy, ww, wh);
+      }
+    }
+  }
+  if (style.accent) {
+    bctx.fillStyle = style.accent;
+    bctx.fillRect(0, 0, w, h * 0.06);
+  }
+
+  const baseTex = new THREE.CanvasTexture(base);
+  baseTex.colorSpace = THREE.SRGBColorSpace;
+  const glowTex = new THREE.CanvasTexture(glow);
+  return { baseTex, glowTex };
+}
+
+// Hospitals/police units are per-district civic services with no building geometry of
+// their own (unlike Buildings, they only reference a district) — place a distinctive
+// marker at their district's center, offset per-service so multiple don't overlap.
+const MARKER_STYLE = {
+  hospital: { angle: Math.PI * 0.15, color: '#f0f0f2', accent: '#e0556f', glow: 0.7, icon: '🏥 ' },
+  police:   { angle: Math.PI * 0.85, color: '#4d5b82', accent: '#e8b94d', glow: 0.6, icon: '🚓 ' },
+  school:   { angle: Math.PI * 0.5,  color: '#e9dcc2', accent: '#3f7d5c', glow: 0.55, icon: '🏫 ' },
+};
+
+function addCivicMarker(name, district, kind, indexInDistrict) {
+  if (!district) return;
+  const [cx, cy] = world(district.center_x, district.center_y);
+  const m = MARKER_STYLE[kind] || MARKER_STYLE.police;
+  const dist = district.radius * SCALE * 0.55 + indexInDistrict * 4;
+  const x = cx + Math.cos(m.angle) * dist;
+  const y = cy + Math.sin(m.angle) * dist;
+
+  const footprint = 12, height = 9;
+  const { baseTex, glowTex } = makeFacadeTextures({ color: m.color, accent: m.accent, glow: m.glow, glass: false }, 3);
+  const mat = new THREE.MeshStandardMaterial({
+    map: baseTex, emissive: 0xffdd94, emissiveMap: glowTex, emissiveIntensity: 0.05, roughness: 0.8,
+  });
+  buildingMaterials.push({ mat, baseGlow: m.glow });
+
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(footprint, height, footprint), mat);
+  mesh.position.set(x, height / 2, y);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  buildingGroup.add(mesh);
+
+  const icon = makeTextSprite(m.icon + name);
+  icon.scale.set(22, 4, 1);
+  icon.position.set(x, height + 3.5, y);
+  scene.add(icon);
+}
+
+const buildingGroup = new THREE.Group();
+scene.add(buildingGroup);
+
+function addBuilding(b) {
+  const style = TYPE_STYLE[b.type] || TYPE_STYLE.apartment;
+  const [x, y] = world(b.x, b.y);
+
+  if (b.type === 'park' || style.footprint === 0) {
+    const tree = () => {
+      const trunk = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.18, 0.24, 1.6, 6),
+        new THREE.MeshStandardMaterial({ color: 0x5a4632, roughness: 1 })
+      );
+      const leaves = new THREE.Mesh(
+        new THREE.ConeGeometry(1.5, 3.2, 8),
+        new THREE.MeshStandardMaterial({ color: 0x2e7d4f, roughness: 0.9 })
+      );
+      leaves.position.y = 2.4;
+      trunk.position.y = 0.8;
+      const g = new THREE.Group();
+      g.add(trunk, leaves);
+      g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+      return g;
+    };
+    for (let i = 0; i < 4; i++) {
+      const t = tree();
+      t.position.set(x + (Math.random() - 0.5) * 8, 0, y + (Math.random() - 0.5) * 8);
+      buildingGroup.add(t);
+    }
+    return;
+  }
+
+  const floors = Math.max(1, b.floors || 1);
+  const height = floors * 3.3 * (0.85 + b.condition * 0.15);
+  const footprint = style.footprint * (0.85 + Math.random() * 0.3);
+
+  const { baseTex, glowTex } = makeFacadeTextures(style, floors);
+  baseTex.wrapS = baseTex.wrapT = THREE.RepeatWrapping;
+  glowTex.wrapS = glowTex.wrapT = THREE.RepeatWrapping;
+
+  const mat = new THREE.MeshStandardMaterial({
+    map: baseTex,
+    emissive: 0xffdd94,
+    emissiveMap: glowTex,
+    emissiveIntensity: 0.05,
+    roughness: style.glass ? 0.25 : 0.85,
+    metalness: style.glass ? 0.35 : 0.05,
+  });
+  buildingMaterials.push({ mat, baseGlow: style.glow });
+
+  const geo = new THREE.BoxGeometry(footprint, height, footprint);
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.set(x, height / 2, y);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  mesh.userData.info = b;
+  buildingGroup.add(mesh);
+
+  if (style.roof) {
+    const roof = new THREE.Mesh(
+      new THREE.ConeGeometry(footprint * 0.8, footprint * 0.55, 4),
+      new THREE.MeshStandardMaterial({ color: 0x6b3f30, roughness: 1 })
+    );
+    roof.rotation.y = Math.PI / 4;
+    roof.position.set(x, height + footprint * 0.22, y);
+    roof.castShadow = true;
+    buildingGroup.add(roof);
+  }
+  if (style.stack) {
+    const stack = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.7, 0.9, height * 0.6, 8),
+      new THREE.MeshStandardMaterial({ color: 0x4a4a4a })
+    );
+    stack.position.set(x + footprint * 0.28, height + height * 0.3, y - footprint * 0.28);
+    stack.castShadow = true;
+    buildingGroup.add(stack);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Government infrastructure projects — when the government funds work (a bridge,
+// a grid upgrade, a fiber install...) it shows up here as a real, growing structure
+// scaled by the project's actual progress, not just a dashboard number.
+// ─────────────────────────────────────────────────────────────
+const constructionSites = new Map(); // project id -> {group, kind, update(progress)}
+
+function projectPosition(p) {
+  if (p.x == null || p.y == null) return null;
+  const [cx, cy] = world(p.x, p.y);
+  let h = 0;
+  for (let i = 0; i < p.id.length; i++) h = (h * 31 + p.id.charCodeAt(i)) | 0;
+  const angle = (h % 3600) / 3600 * Math.PI * 2;
+  const dist = (p.radius || 800) * SCALE * 0.35;
+  return [cx + Math.cos(angle) * dist, cy + Math.sin(angle) * dist, angle];
+}
+
+function buildBridgeSite(x, y, angle) {
+  const group = new THREE.Group();
+  const span = 34, deckWidth = 5, pillarHeight = 6, deckY = pillarHeight;
+  const deckMat = new THREE.MeshStandardMaterial({ color: 0x8a8f9c, roughness: 0.7, metalness: 0.2 });
+  const pillarMat = new THREE.MeshStandardMaterial({ color: 0x6b6f79, roughness: 0.85 });
+  const railMat = new THREE.MeshStandardMaterial({ color: 0xd9a13c, roughness: 0.5, metalness: 0.4 });
+
+  const p1 = new THREE.Mesh(new THREE.BoxGeometry(2.2, pillarHeight, 4), pillarMat);
+  p1.position.set(-span / 2, pillarHeight / 2, 0);
+  const p2 = p1.clone();
+  p2.position.x = span / 2;
+  group.add(p1, p2);
+
+  const deck = new THREE.Mesh(new THREE.BoxGeometry(1, 1.2, deckWidth), deckMat);
+  deck.position.set(0, deckY, 0);
+  deck.userData.fullSpan = span;
+  group.add(deck);
+
+  const rail1 = new THREE.Mesh(new THREE.BoxGeometry(1, 0.3, 0.2), railMat);
+  rail1.position.set(0, deckY + 0.75, deckWidth / 2 - 0.15);
+  const rail2 = rail1.clone();
+  rail2.position.z = -(deckWidth / 2 - 0.15);
+  group.add(rail1, rail2);
+  group.userData.rails = [rail1, rail2, deck];
+
+  group.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  group.position.set(x, 0, y);
+  group.rotation.y = angle;
+  buildingGroup.add(group);
+
+  return {
+    group,
+    update(progress) {
+      const scale = Math.max(0.04, progress);
+      deck.scale.x = scale;
+      rail1.scale.x = scale;
+      rail2.scale.x = scale;
+    },
+  };
+}
+
+function buildConstructionSite(x, y, kind) {
+  const group = new THREE.Group();
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const ctx = c.getContext('2d');
+  for (let i = -1; i < 3; i++) {
+    ctx.fillStyle = i % 2 === 0 ? '#e8b94d' : '#1b1c22';
+    ctx.beginPath();
+    ctx.moveTo(i * 22, 0); ctx.lineTo(i * 22 + 16, 0); ctx.lineTo(i * 22 + 16 - 64, 64); ctx.lineTo(i * 22 - 64, 64);
+    ctx.fill();
+  }
+  const stripeTex = new THREE.CanvasTexture(c);
+  const fenceMat = new THREE.MeshStandardMaterial({ map: stripeTex, roughness: 0.9 });
+  const fence = new THREE.Mesh(new THREE.BoxGeometry(9, 1.4, 9, 1, 1, 1), fenceMat);
+  fence.position.y = 0.7;
+  group.add(fence);
+
+  const craneMat = new THREE.MeshStandardMaterial({ color: 0xe8b94d, roughness: 0.6, metalness: 0.3 });
+  const craneMast = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 10, 6), craneMat);
+  craneMast.position.set(-2, 5, -2);
+  const craneArm = new THREE.Mesh(new THREE.BoxGeometry(7, 0.3, 0.3), craneMat);
+  craneArm.position.set(1, 9.8, -2);
+  group.add(craneMast, craneArm);
+
+  const riser = new THREE.Mesh(
+    new THREE.BoxGeometry(5, 1, 5),
+    new THREE.MeshStandardMaterial({ color: 0xb7b6ae, roughness: 0.8 })
+  );
+  riser.position.y = 0.5;
+  group.add(riser);
+
+  group.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  group.position.set(x, 0, y);
+  buildingGroup.add(group);
+
+  return {
+    group,
+    update(progress) {
+      const h = 1 + progress * 10;
+      riser.scale.y = h;
+      riser.position.y = h / 2;
+    },
+  };
+}
+
+const BUILD_ICONS = {
+  bridge_build: '🌉 ',
+  hospital_build: '🏥 ',
+  school_build: '🏫 ',
+  colony_build: '🏘 ',
+  road_build: '🛣 ',
+  grid_upgrade: '⚡ ',
+  pipe_replacement: '🚰 ',
+  fiber_install: '📡 ',
+  road_repair: '🔧 ',
+};
+
+// Project ids whose permanent road mesh has already been added to the scene —
+// road_build doesn't route through the generic single-point construction-site
+// flow below since it needs two exact endpoints, not a district-jittered point.
+const roadProjectsBuilt = new Set();
+
+function updateConstructionSites(projects) {
+  const seenIds = new Set();
+  (projects || []).forEach(p => {
+    if (p.type === 'road_build') {
+      const hasEndpoints = p.x != null && p.y != null && p.target_x != null && p.target_y != null;
+      if (p.is_completed) {
+        if (hasEndpoints && !roadProjectsBuilt.has(p.id)) {
+          roadProjectsBuilt.add(p.id);
+          const [x1, y1] = world(p.x, p.y);
+          const [x2, y2] = world(p.target_x, p.target_y);
+          addRoad(x1, y1, x2, y2);
+        }
+        return;
+      }
+      if (!p.is_active || !hasEndpoints) return;
+      seenIds.add(p.id);
+      const [x1, y1] = world(p.x, p.y);
+      const [x2, y2] = world(p.target_x, p.target_y);
+      const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+
+      let entry = constructionSites.get(p.id);
+      if (!entry) {
+        entry = buildConstructionSite(mx, my);
+        entry.kind = p.type;
+        entry.isPermanent = false;
+        const icon = makeTextSprite(BUILD_ICONS.road_build + p.name);
+        icon.scale.set(20, 3.6, 1);
+        icon.position.set(mx, 13, my);
+        scene.add(icon);
+        entry.icon = icon;
+        constructionSites.set(p.id, entry);
+      }
+      entry.update(p.progress);
+      return;
+    }
+
+    if (!p.is_active || p.is_completed) return;
+    const pos = projectPosition(p);
+    if (!pos) return;
+    const [x, y, angle] = pos;
+    seenIds.add(p.id);
+
+    let entry = constructionSites.get(p.id);
+    if (!entry) {
+      entry = p.type === 'bridge_build' ? buildBridgeSite(x, y, angle) : buildConstructionSite(x, y);
+      entry.kind = p.type;
+      entry.isPermanent = p.type === 'bridge_build';
+      const icon = makeTextSprite((BUILD_ICONS[p.type] || '🚧 ') + p.name);
+      icon.scale.set(20, 3.6, 1);
+      icon.position.set(x, (entry.isPermanent ? 12 : 13), y);
+      scene.add(icon);
+      entry.icon = icon;
+      constructionSites.set(p.id, entry);
+    }
+    entry.update(p.progress);
+  });
+
+  for (const [id, entry] of constructionSites) {
+    if (!seenIds.has(id)) {
+      // Bridges are permanent physical structures — once built, they stay standing
+      // even after the project itself drops off the active list. Everything else
+      // (grid upgrades, a hospital's crane before the real building takes over...)
+      // is temporary, so its construction-site marker is removed once done.
+      if (!entry.isPermanent) {
+        buildingGroup.remove(entry.group);
+        scene.remove(entry.icon);
+      }
+      constructionSites.delete(id);
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Citizens — small figures that glide between polled positions
+// ─────────────────────────────────────────────────────────────
+const citizenGroup = new THREE.Group();
+scene.add(citizenGroup);
+const citizenMeshes = new Map(); // id -> {group, target: THREE.Vector3, data}
+
+// ─────────────────────────────────────────────────────────────
+// Interaction lines — a glowing thread between two citizens currently having a
+// face-to-face conversation, tracking their live (lerped) positions each frame.
+// ─────────────────────────────────────────────────────────────
+const interactionLines = new Map(); // pairKey -> {line, aId, bId, material}
+
+const INTERACTION_LINE_LIFETIME = 9; // seconds a conversation's line stays visible
+
+function getOrCreateInteractionLine(aId, bId) {
+  const key = [aId, bId].sort().join('|');
+  let entry = interactionLines.get(key);
+  if (!entry) {
+    const geometry = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]);
+    const material = new THREE.LineBasicMaterial({ color: 0xe8b94d, transparent: true, opacity: 0 });
+    const line = new THREE.Line(geometry, material);
+    scene.add(line);
+    entry = { line, aId, bId, material, age: 0 };
+    interactionLines.set(key, entry);
+  } else {
+    entry.age = 0; // seen again — refresh its lifetime
+  }
+  return entry;
+}
+
+function pruneInteractionLines() {
+  // Age-based cleanup happens in updateInteractionLines; this just drops anything
+  // whose partner citizens no longer exist (e.g. died) to avoid a leaked reference.
+  for (const [key, entry] of interactionLines) {
+    if (!citizenMeshes.has(entry.aId) || !citizenMeshes.has(entry.bId)) {
+      scene.remove(entry.line);
+      entry.line.geometry.dispose();
+      interactionLines.delete(key);
+    }
+  }
+}
+
+function updateInteractionLines(dt) {
+  interactionLines.forEach((entry, key) => {
+    entry.age += dt;
+    if (entry.age > INTERACTION_LINE_LIFETIME) {
+      scene.remove(entry.line);
+      entry.line.geometry.dispose();
+      interactionLines.delete(key);
+      return;
+    }
+    const a = citizenMeshes.get(entry.aId);
+    const b = citizenMeshes.get(entry.bId);
+    if (!a || !b) return;
+    const pa = a.group.position.clone(); pa.y += 1.6;
+    const pb = b.group.position.clone(); pb.y += 1.6;
+    entry.line.geometry.setFromPoints([pa, pb]);
+    const fadeIn = Math.min(1, entry.age * 2);
+    const fadeOut = Math.min(1, (INTERACTION_LINE_LIFETIME - entry.age) * 1.5);
+    entry.material.opacity = 0.85 * Math.min(fadeIn, fadeOut);
+  });
+}
+
+// ─────────────────────────────────────────────────────────────
+// Vehicles — ambient traffic driving back and forth along the road network.
+// Not tied to individual real trips (the sim doesn't expose live per-vehicle
+// positions), but the vehicle count scales with actual reported trip volume
+// so a busier city visibly has more traffic.
+// ─────────────────────────────────────────────────────────────
+const vehicleGroup = new THREE.Group();
+scene.add(vehicleGroup);
+const vehicles = [];
+
+const VEHICLE_STYLES = [
+  { color: 0xe0e4ec, w: 1.6, l: 3.0, h: 1.1, speed: 9 },   // car
+  { color: 0xf0c94d, w: 1.9, l: 5.5, h: 1.8, speed: 6 },   // bus
+];
+
+function makeVehicleMesh(style) {
+  const geo = new THREE.BoxGeometry(style.w, style.h, style.l);
+  const mat = new THREE.MeshStandardMaterial({ color: style.color, roughness: 0.4, metalness: 0.3 });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.y = style.h / 2 + 0.15;
+  mesh.castShadow = true;
+  const lights = new THREE.Mesh(
+    new THREE.BoxGeometry(style.w * 0.9, 0.15, 0.15),
+    new THREE.MeshStandardMaterial({ color: 0xfff2c0, emissive: 0xfff2c0, emissiveIntensity: 1.2 })
+  );
+  lights.position.set(0, 0, style.l / 2 - 0.1);
+  mesh.add(lights);
+  return mesh;
+}
+
+function spawnVehicles(count) {
+  vehicles.forEach(v => vehicleGroup.remove(v.mesh));
+  vehicles.length = 0;
+  if (!roadSegments.length) return;
+  for (let i = 0; i < count; i++) {
+    const seg = roadSegments[Math.floor(Math.random() * roadSegments.length)];
+    const style = VEHICLE_STYLES[Math.random() < 0.75 ? 0 : 1];
+    const mesh = makeVehicleMesh(style);
+    vehicleGroup.add(mesh);
+    vehicles.push({
+      mesh, seg, style,
+      t: Math.random(),
+      dir: Math.random() < 0.5 ? 1 : -1,
+    });
+  }
+}
+
+function updateVehicles(dt) {
+  for (const v of vehicles) {
+    const { seg, style } = v;
+    v.t += (v.dir * style.speed * dt) / seg.len;
+    if (v.t > 1) { v.t = 1; v.dir = -1; }
+    if (v.t < 0) { v.t = 0; v.dir = 1; }
+    const x = seg.x1 + (seg.x2 - seg.x1) * v.t;
+    const y = seg.y1 + (seg.y2 - seg.y1) * v.t;
+    v.mesh.position.x = x;
+    v.mesh.position.z = y;
+    const heading = Math.atan2((seg.x2 - seg.x1) * v.dir, (seg.y2 - seg.y1) * v.dir);
+    v.mesh.rotation.y = heading;
+  }
+}
+
+function happinessColor(h) {
+  h = Math.max(0, Math.min(1, h ?? 0.5));
+  const stops = [[0.0, [240, 85, 111]], [0.5, [240, 168, 60]], [1.0, [45, 212, 167]]];
+  for (let i = 0; i < stops.length - 1; i++) {
+    const [t0, c0] = stops[i], [t1, c1] = stops[i + 1];
+    if (h >= t0 && h <= t1) {
+      const t = (h - t0) / (t1 - t0 || 1);
+      return new THREE.Color(
+        (c0[0] + (c1[0] - c0[0]) * t) / 255,
+        (c0[1] + (c1[1] - c0[1]) * t) / 255,
+        (c0[2] + (c1[2] - c0[2]) * t) / 255
+      );
+    }
+  }
+  return new THREE.Color(0xf0a83c);
+}
+
+function makeCitizenMesh(color) {
+  const g = new THREE.Group();
+  const bodyGeo = new THREE.CapsuleGeometry(0.4, 1.1, 4, 8);
+  const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.6 });
+  const body = new THREE.Mesh(bodyGeo, mat);
+  body.position.y = 1.15;
+  body.castShadow = true;
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.3, 10, 10), new THREE.MeshStandardMaterial({ color: 0xf2c9a0, roughness: 0.7 }));
+  head.position.y = 2.0;
+  head.castShadow = true;
+  g.add(body, head);
+  return g;
+}
+
+// Citizens share x/y with the building they're inside (home/work), which would render
+// them invisible under the building mesh — nudge each one to a stable spot just outside
+// its footprint using a hash of their id so the offset never jitters between polls.
+function hashOffset(id, spread) {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0;
+  const angle = (h % 3600) / 3600 * Math.PI * 2;
+  const radius = spread * (0.5 + ((h >> 8) % 1000) / 1000 * 0.5);
+  return [Math.cos(angle) * radius, Math.sin(angle) * radius];
+}
+
+function upsertCitizen(c) {
+  const [bx, by] = world(c.x, c.y);
+  const [ox, oy] = hashOffset(c.id, 13);
+  const x = bx + ox, y = by + oy;
+  let entry = citizenMeshes.get(c.id);
+  const color = happinessColor(c.happiness);
+  if (!entry) {
+    const mesh = makeCitizenMesh(color);
+    mesh.position.set(x, 0, y);
+    citizenGroup.add(mesh);
+    entry = { group: mesh, target: new THREE.Vector3(x, 0, y), data: c, phase: Math.random() * 10 };
+    citizenMeshes.set(c.id, entry);
+  } else {
+    entry.target.set(x, 0, y);
+    entry.data = c;
+    entry.group.children[0].material.color.copy(color);
+  }
+}
+
+function pruneCitizens(activeIds) {
+  for (const [id, entry] of citizenMeshes) {
+    if (!activeIds.has(id)) {
+      citizenGroup.remove(entry.group);
+      citizenMeshes.delete(id);
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Tooltip + click-to-inspect
+// ─────────────────────────────────────────────────────────────
+const raycaster = new THREE.Raycaster();
+const pointer = new THREE.Vector2();
+const tooltip = document.getElementById('tooltip');
+
+function activityIcon(a) {
+  const map = { sleep: '😴', work: '💼', job_search: '🔍', meeting: '🧑‍🤝‍🧑', eat_at_restaurant: '🍽',
+                eat_at_home: '🍽', shopping: '🛍', socialize: '🗣', exercise: '🏃', relax: '🛋',
+                study: '📚', learn_skill: '🎓' };
+  return map[a] || '▫️';
+}
+
+renderer.domElement.addEventListener('click', (evt) => {
+  pointer.x = (evt.clientX / window.innerWidth) * 2 - 1;
+  pointer.y = -(evt.clientY / window.innerHeight) * 2 + 1;
+  raycaster.setFromCamera(pointer, camera);
+  const targets = [];
+  citizenMeshes.forEach(e => targets.push(e.group.children[0]));
+  const hits = raycaster.intersectObjects(targets, false);
+  if (hits.length) {
+    const hitGroup = hits[0].object.parent;
+    let found = null;
+    citizenMeshes.forEach(e => { if (e.group === hitGroup) found = e; });
+    if (found) {
+      const c = found.data;
+      tooltip.innerHTML = `<div class="t-name">${c.name}</div>
+        <div class="t-meta">${c.age} yrs • ${c.occupation}</div>
+        <div class="t-meta">${activityIcon(c.current_activity)} ${(c.current_activity||'').replace(/_/g,' ')}</div>
+        <div class="t-meta">Happiness ${Math.round((c.happiness||0)*100)}% • ${c.district_name||'—'}</div>`;
+      tooltip.style.display = 'block';
+      tooltip.style.left = (evt.clientX + 14) + 'px';
+      tooltip.style.top = (evt.clientY + 10) + 'px';
+      setTimeout(() => { tooltip.style.display = 'none'; }, 5000);
+    }
+  } else {
+    tooltip.style.display = 'none';
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// Live data polling
+// ─────────────────────────────────────────────────────────────
+async function fetchJSON(path) {
+  try {
+    const r = await fetch(API + path);
+    if (!r.ok) return null;
+    return await r.json();
+  } catch (e) { return null; }
+}
+
+// Populated once at load and reused by the periodic civic-marker/building refreshers
+// below, so newly-built hospitals/schools/houses can be placed relative to their
+// district without re-fetching the district list every poll.
+let cachedDistricts = [];
+const addedBuildingIds = new Set();
+const addedCivicMarkers = new Set(); // "kind:name"
+
+async function refreshBuildings() {
+  const buildings = await fetchJSON('/api/city/buildings');
+  if (!buildings) return;
+  buildings.forEach(b => {
+    if (addedBuildingIds.has(b.id)) return;
+    addedBuildingIds.add(b.id);
+    addBuilding(b);
+  });
+}
+
+async function refreshCivicMarkers() {
+  if (!cachedDistricts.length) return;
+
+  async function loadKind(path, kind) {
+    const items = await fetchJSON(path);
+    if (!items) return;
+    const perDistrict = {};
+    items.forEach(item => {
+      const d = cachedDistricts.find(dd => item.name.startsWith(dd.name));
+      if (!d) return;
+      perDistrict[d.name] = (perDistrict[d.name] || 0);
+      const key = `${kind}:${item.name}`;
+      if (!addedCivicMarkers.has(key)) {
+        addedCivicMarkers.add(key);
+        addCivicMarker(item.name, d, kind, perDistrict[d.name]);
+      }
+      perDistrict[d.name]++;
+    });
+  }
+
+  await loadKind('/api/healthcare/hospitals', 'hospital');
+  await loadKind('/api/education/schools', 'school');
+  await loadKind('/api/crime/police', 'police');
+}
+
+async function loadStaticCity() {
+  const districts = await fetchJSON('/api/city/districts');
+  cachedDistricts = districts || [];
+  if (districts) districts.forEach(addDistrictZone);
+
+  if (districts && districts.length > 1) {
+    for (let i = 0; i < districts.length; i++) {
+      for (let j = i + 1; j < districts.length; j++) {
+        const [x1, y1] = world(districts[i].center_x, districts[i].center_y);
+        const [x2, y2] = world(districts[j].center_x, districts[j].center_y);
+        const dist = Math.hypot(x2 - x1, y2 - y1);
+        if (dist < 140) addRoad(x1, y1, x2, y2);
+      }
+    }
+  }
+
+  await refreshBuildings();
+  await refreshCivicMarkers();
+
+  const traffic = await fetchJSON('/api/traffic/stats');
+  const byVehicle = traffic && traffic.trips_by_vehicle ? traffic.trips_by_vehicle : {};
+  const roadVehicleCount = Math.min(40, Math.max(6, Math.round(((byVehicle.car || 0) + (byVehicle.bus || 0)) / 2)));
+  spawnVehicles(roadVehicleCount);
+}
+
+function updateStatChips(status, weather) {
+  const strip = document.getElementById('stat-strip');
+  if (!status) return;
+  const wIcon = { clear: '☀️', cloudy: '☁️', rain: '🌧', storm: '⛈', snow: '❄️', fog: '🌫', heatwave: '🔥', cold_snap: '🥶' };
+  strip.innerHTML = `
+    <div class="chip"><span class="label">Tick</span> ${status.current_tick}</div>
+    <div class="chip"><span class="label">Pop</span> ${status.population}</div>
+    <div class="chip">${status.status === 'running' ? '🟢' : '🔴'} ${status.status}</div>
+    ${weather ? `<div class="chip">${wIcon[weather.condition] || '🌤'} ${weather.temperature_c}°C</div>` : ''}
+    <div class="chip"><span class="label">Time</span> ${(status.sim_time || '').slice(11, 16) || '—'}</div>
+  `;
+}
+
+let lastHour = null;
+async function pollFast() {
+  const citizens = await fetchJSON('/api/citizens/?limit=1200');
+  if (citizens) {
+    const activeIds = new Set();
+    citizens.forEach(c => {
+      if (c.x == null || c.y == null) return;
+      activeIds.add(c.id);
+      upsertCitizen(c);
+    });
+    pruneCitizens(activeIds);
+  }
+
+  // Conversations are generated and resolved within the same simulation tick (near-
+  // instant), so an "is_active" conversation is essentially never caught mid-flight by
+  // a poll — show the most recent handful regardless of is_active instead, and let them
+  // fade out naturally over a few poll cycles via pruneInteractionLines' grace period.
+  const conversations = await fetchJSON('/api/communication/conversations?limit=40');
+  if (conversations) {
+    conversations
+      .filter(c => c.channel === 'face_to_face')
+      .slice(0, 10)
+      .forEach(c => {
+        const parts = c.participants || [];
+        if (parts.length >= 2 && citizenMeshes.has(parts[0]) && citizenMeshes.has(parts[1])) {
+          getOrCreateInteractionLine(parts[0], parts[1]);
+        }
+      });
+    pruneInteractionLines();
+  }
+}
+
+async function pollSlow() {
+  const [status, weather, projects] = await Promise.all([
+    fetchJSON('/api/simulation/status'),
+    fetchJSON('/api/weather/current'),
+    fetchJSON('/api/infrastructure/projects?limit=30'),
+  ]);
+  updateStatChips(status, weather);
+  if (status && status.sim_time) {
+    const iso = status.sim_time.endsWith('Z') ? status.sim_time : status.sim_time + 'Z';
+    const hour = new Date(iso).getUTCHours();
+    if (hour !== lastHour) {
+      lastHour = hour;
+      updateSunForHour(hour);
+    }
+  }
+  updateConstructionSites(projects);
+  await refreshBuildings();
+  await refreshCivicMarkers();
+}
+
+// ─────────────────────────────────────────────────────────────
+// Animation loop
+// ─────────────────────────────────────────────────────────────
+const clock = new THREE.Clock();
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = clock.getDelta();
+  const t = clock.getElapsedTime();
+
+  citizenMeshes.forEach(entry => {
+    entry.group.position.lerp(entry.target, 1 - Math.pow(0.001, dt));
+    const moving = entry.group.position.distanceTo(entry.target) > 0.05;
+    entry.group.children[0].position.y = 1.15 + (moving ? Math.sin(t * 6 + entry.phase) * 0.05 : 0);
+  });
+  updateVehicles(dt);
+  updateInteractionLines(dt);
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+async function init() {
+  await loadStaticCity();
+  await pollFast();
+  await pollSlow();
+  document.getElementById('loading').style.display = 'none';
+  animate();
+  setInterval(pollFast, 2500);
+  setInterval(pollSlow, 5000);
+}
+init();
+
+window.__debugCounts = () => ({
+  buildings: buildingGroup.children.length,
+  citizens: citizenGroup.children.length,
+  vehicles: vehicleGroup.children.length,
+  roadSegments: roadSegments.length,
+  interactionLines: interactionLines.size,
+  interactionLineOpacities: Array.from(interactionLines.values()).map(e => Math.round(e.material.opacity * 100) / 100),
+  constructionSites: constructionSites.size,
+  cameraPos: camera.position.toArray(),
+});
+</script>
+</body>
+</html>
