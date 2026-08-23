@@ -10,7 +10,7 @@ import uuid
 from datetime import datetime
 from enum import StrEnum
 
-from sqlalchemy import String, DateTime, Boolean, Enum, ForeignKey, Integer
+from sqlalchemy import String, DateTime, Boolean, Enum, ForeignKey, Integer, JSON
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
@@ -42,6 +42,18 @@ class Organization(Base):
     plan_key: Mapped[str] = mapped_column(String(50), default="basic")  # basic|pro|enterprise|research
     agent_quota: Mapped[int] = mapped_column(Integer, default=1000)
     model_tier: Mapped[str] = mapped_column(String(20), default="simplified")  # simplified|advanced
+
+    # Which Twin Platform environment keys (from EnvironmentRegistry — "city",
+    # "hospital_ward", etc.) this org may run. An EMPTY list means unrestricted — this
+    # is the backward-compatible default so every org created before this column
+    # existed keeps working exactly as before with zero migration step.
+    allowed_environments: Mapped[list[str]] = mapped_column(JSON, default=list)
+
+    # Which city-simulation feature modules ("tabs" — Traffic, Disasters, AI Advisor,
+    # ...) this org may call, scoped independently of allowed_environments: an org can
+    # have full environment access but a Basic-tier subset of feature modules, or vice
+    # versa. Same empty-list-means-unrestricted convention as allowed_environments.
+    allowed_modules: Mapped[list[str]] = mapped_column(JSON, default=list)
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 

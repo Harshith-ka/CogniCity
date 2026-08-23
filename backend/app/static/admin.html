@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>COGNICITY_OS • Admin Portal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet">
+
+  <style>
+    :root {
+      --bg-deep: #06070a;
+      --bg-surface: #0b0d13;
+      --bg-card: #0f121a;
+      --bg-card-hover: #141824;
+      --border-dim: #1c2230;
+      --border-bright: #2d3748;
+      --cyan-primary: #00e5ff;
+      --cyan-glow: rgba(0, 229, 255, 0.45);
+      --cyan-dim: rgba(0, 229, 255, 0.1);
+      --orange-primary: #ff6600;
+      --orange-glow: rgba(255, 102, 0, 0.5);
+      --red-alert: #ff3366;
+      --green-nominal: #00e676;
+      --text-primary: #edf2f7;
+      --text-muted: #718096;
+      --text-dim: #45526b;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg-deep);
+      background-image:
+        linear-gradient(rgba(0, 229, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 229, 255, 0.03) 1px, transparent 1px);
+      background-size: 32px 32px;
+      color: var(--text-primary);
+      font-family: 'JetBrains Mono', monospace;
+      min-height: 100vh;
+    }
+
+    h1, h2, h3, .display {
+      font-family: 'Chakra Petch', sans-serif;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    .mono-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    /* ── Top bar ─────────────────────────────────────────── */
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 28px;
+      border-bottom: 1px solid var(--border-dim);
+      background: rgba(11, 13, 19, 0.85);
+      backdrop-filter: blur(6px);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand-mark {
+      width: 36px; height: 36px;
+      border: 1px solid var(--cyan-primary);
+      border-radius: 4px;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--cyan-primary);
+      box-shadow: 0 0 14px var(--cyan-glow);
+      font-size: 18px;
+    }
+    .brand h1 { font-size: 17px; color: #fff; }
+    .brand .tag { font-size: 10px; color: var(--orange-primary); letter-spacing: 0.15em; }
+
+    .session-box {
+      display: flex; align-items: center; gap: 14px;
+      font-size: 12px;
+    }
+    .session-box .who { text-align: right; }
+    .session-box .who .name { color: #fff; font-weight: 600; }
+    .session-box .who .role {
+      color: var(--cyan-primary);
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+    .avatar {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: var(--cyan-dim);
+      border: 1px solid var(--border-bright);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--cyan-primary); font-weight: 700; font-size: 13px;
+    }
+
+    /* ── Buttons ─────────────────────────────────────────── */
+    .btn {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      padding: 9px 16px;
+      border-radius: 4px;
+      border: 1px solid var(--border-bright);
+      background: var(--bg-card);
+      color: var(--text-primary);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .btn:hover { border-color: var(--cyan-primary); color: var(--cyan-primary); }
+    .btn-primary {
+      background: var(--cyan-primary); color: #06070a; border-color: var(--cyan-primary);
+    }
+    .btn-primary:hover { box-shadow: 0 0 16px var(--cyan-glow); color: #06070a; }
+    .btn-ghost { background: transparent; border-color: var(--border-dim); color: var(--text-muted); }
+    .btn-ghost:hover { color: var(--text-primary); border-color: var(--border-bright); }
+    .btn-danger { border-color: var(--red-alert); color: var(--red-alert); background: transparent; }
+    .btn-danger:hover { background: rgba(255, 51, 102, 0.1); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-block { width: 100%; }
+
+    /* ── Layout ──────────────────────────────────────────── */
+    .shell { max-width: 1080px; margin: 0 auto; padding: 32px 28px 80px; }
+    .center-shell {
+      min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      padding: 24px;
+    }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-dim);
+      border-radius: 6px;
+      padding: 22px;
+    }
+    .card-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 16px; padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-dim);
+    }
+    .card-title { font-family: 'Chakra Petch', sans-serif; font-size: 14px; font-weight: 700; color: #fff; }
+
+    .row { display: flex; gap: 16px; }
+    .stack { display: flex; flex-direction: column; gap: 16px; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+    /* ── Forms ───────────────────────────────────────────── */
+    .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+    .field label { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); }
+    .field input, .field select {
+      font-family: 'JetBrains Mono', monospace;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-bright);
+      border-radius: 4px;
+      padding: 10px 12px;
+      color: var(--text-primary);
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.15s ease;
+    }
+    .field input:focus, .field select:focus { border-color: var(--cyan-primary); }
+
+    /* ── Login ───────────────────────────────────────────── */
+    .login-card { width: 380px; }
+    .login-header { text-align: center; margin-bottom: 24px; }
+    .login-header .brand-mark { margin: 0 auto 14px; width: 52px; height: 52px; font-size: 24px; }
+    .login-header h1 { font-size: 20px; color: #fff; margin-bottom: 4px; }
+    .login-error {
+      background: rgba(255, 51, 102, 0.1); border: 1px solid var(--red-alert);
+      color: var(--red-alert); font-size: 12px; padding: 10px 12px; border-radius: 4px;
+      margin-bottom: 14px; display: none;
+    }
+    .login-hint {
+      margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border-dim);
+      font-size: 11px; color: var(--text-dim); text-align: center; line-height: 1.6;
+    }
+
+    /* ── Table ───────────────────────────────────────────── */
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    thead th {
+      text-align: left; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--text-muted); padding: 8px 10px; border-bottom: 1px solid var(--border-dim);
+    }
+    tbody td { padding: 12px 10px; border-bottom: 1px solid var(--border-dim); vertical-align: middle; }
+    tbody tr { transition: background 0.15s ease; cursor: pointer; }
+    tbody tr:hover { background: var(--bg-card-hover); }
+    tbody tr:last-child td { border-bottom: none; }
+    .empty-row td { text-align: center; color: var(--text-dim); padding: 28px 10px; cursor: default; }
+    .empty-row:hover { background: transparent; }
+
+    /* ── Badges ──────────────────────────────────────────── */
+    .badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 600;
+      padding: 3px 9px; border-radius: 3px; border: 1px solid;
+    }
+    .badge::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+    .badge-active { color: var(--green-nominal); border-color: var(--green-nominal); background: rgba(0, 230, 118, 0.08); }
+    .badge-trial { color: var(--orange-primary); border-color: var(--orange-primary); background: rgba(255, 102, 0, 0.08); }
+    .badge-suspended { color: var(--red-alert); border-color: var(--red-alert); background: rgba(255, 51, 102, 0.08); }
+    .badge-role { color: var(--cyan-primary); border-color: var(--cyan-primary); background: var(--cyan-dim); }
+
+    /* ── Stat tiles ──────────────────────────────────────── */
+    .stat-tile {
+      background: var(--bg-surface); border: 1px solid var(--border-dim); border-radius: 5px;
+      padding: 16px;
+    }
+    .stat-tile .stat-label { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px; }
+    .stat-tile .stat-value { font-family: 'Chakra Petch', sans-serif; font-size: 26px; font-weight: 700; color: #fff; }
+    .stat-tile .stat-sub { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+    .quota-bar { height: 5px; background: var(--border-dim); border-radius: 3px; margin-top: 10px; overflow: hidden; }
+    .quota-bar-fill { height: 100%; background: var(--cyan-primary); border-radius: 3px; transition: width 0.3s ease; }
+    .quota-bar-fill.over { background: var(--red-alert); }
+
+    /* ── Misc ────────────────────────────────────────────── */
+    .breadcrumb { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-muted); margin-bottom: 18px; }
+    .breadcrumb a { color: var(--cyan-primary); text-decoration: none; cursor: pointer; }
+    .breadcrumb a:hover { text-decoration: underline; }
+    .page-title-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+    .page-title-row h2 { font-size: 22px; color: #fff; }
+    .hidden { display: none !important; }
+
+    .toast {
+      position: fixed; bottom: 24px; right: 24px; z-index: 100;
+      background: var(--bg-card); border: 1px solid var(--border-bright); border-left: 3px solid var(--cyan-primary);
+      border-radius: 4px; padding: 12px 16px; font-size: 12px; color: var(--text-primary);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+      transform: translateY(12px); opacity: 0; transition: all 0.25s ease; pointer-events: none;
+      max-width: 340px;
+    }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .toast.error { border-left-color: var(--red-alert); }
+
+    .modal-backdrop {
+      position: fixed; inset: 0; background: rgba(6,7,10,0.75); backdrop-filter: blur(2px);
+      display: flex; align-items: center; justify-content: center; z-index: 50;
+    }
+    .modal { width: 380px; }
+
+    .loading-line { color: var(--text-dim); font-size: 12px; padding: 20px; text-align: center; }
+
+    /* ── Environment access ──────────────────────────────── */
+    .env-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .env-chip {
+      display: flex; align-items: center; gap: 9px;
+      border: 1px solid var(--border-dim); border-radius: 4px;
+      padding: 9px 11px; font-size: 12px; cursor: pointer;
+      background: var(--bg-surface); transition: border-color 0.15s ease;
+    }
+    .env-chip:hover { border-color: var(--border-bright); }
+    .env-chip input { accent-color: var(--cyan-primary); width: 14px; height: 14px; flex-shrink: 0; }
+    .env-chip .icon { font-size: 14px; }
+    .env-chip.readonly { cursor: default; }
+    .env-chip.readonly:hover { border-color: var(--border-dim); }
+    .env-hint { font-size: 11px; color: var(--text-dim); margin: -4px 0 12px; line-height: 1.5; }
+    .env-badge-row { display: flex; flex-wrap: wrap; gap: 6px; }
+    .env-badge {
+      font-size: 11px; padding: 4px 10px; border-radius: 3px;
+      border: 1px solid var(--border-bright); color: var(--text-primary); background: var(--bg-surface);
+    }
+    .env-badge.unrestricted { color: var(--green-nominal); border-color: var(--green-nominal); background: rgba(0,230,118,0.08); }
+  </style>
+</head>
+
+<body>
+
+  <!-- ══════════════ LOGIN VIEW ══════════════ -->
+  <div id="view-login" class="center-shell">
+    <div class="card login-card">
+      <div class="login-header">
+        <div class="brand-mark">◈</div>
+        <h1>COGNICITY_OS</h1>
+        <div class="mono-label" style="color:var(--orange-primary);">Admin Portal</div>
+      </div>
+      <div id="login-error" class="login-error"></div>
+      <form id="login-form">
+        <div class="field">
+          <label for="login-email">Email</label>
+          <input type="email" id="login-email" required autocomplete="username" placeholder="you@organization.com">
+        </div>
+        <div class="field">
+          <label for="login-password">Password</label>
+          <input type="password" id="login-password" required autocomplete="current-password" placeholder="••••••••">
+        </div>
+        <button type="submit" id="login-submit" class="btn btn-primary btn-block" style="margin-top: 6px;">Sign In</button>
+      </form>
+      <div class="login-hint">Access is provisioned per-organization.<br>Contact your platform admin for credentials.</div>
+    </div>
+  </div>
+
+  <!-- ══════════════ APP SHELL ══════════════ -->
+  <div id="view-app" class="hidden">
+    <div class="topbar">
+      <div class="brand">
+        <div class="brand-mark">◈</div>
+        <div>
+          <h1>COGNICITY_OS <span style="color:var(--text-muted); font-weight:500;">/ Admin</span></h1>
+          <div class="tag" id="context-org-name"></div>
+        </div>
+      </div>
+      <div class="session-box">
+        <div class="who">
+          <div class="name" id="session-name">—</div>
+          <div class="role" id="session-role">—</div>
+        </div>
+        <div class="avatar" id="session-avatar">?</div>
+        <button class="btn btn-ghost" id="btn-logout">Sign Out</button>
+      </div>
+    </div>
+
+    <div class="shell">
+
+      <!-- ── Organizations list (super_admin) ── -->
+      <div id="view-orgs" class="hidden">
+        <div class="page-title-row">
+          <h2>Organizations</h2>
+          <button class="btn btn-primary" id="btn-new-org">+ New Organization</button>
+        </div>
+        <div class="card" style="padding:0;">
+          <table>
+            <thead>
+              <tr><th>Name</th><th>Status</th><th>Plan</th><th>Agent Quota</th><th>Model Tier</th><th>Access</th><th>Users</th></tr>
+            </thead>
+            <tbody id="orgs-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── Organization detail ── -->
+      <div id="view-org-detail" class="hidden">
+        <div class="breadcrumb" id="org-detail-breadcrumb">
+          <a id="back-to-orgs">Organizations</a> <span>/</span> <span id="org-detail-crumb-name"></span>
+        </div>
+        <div class="page-title-row">
+          <h2 id="org-detail-title">—</h2>
+          <span class="badge" id="org-detail-status-badge"></span>
+        </div>
+
+        <div class="grid-2" style="margin-bottom:20px;">
+          <div class="stat-tile">
+            <div class="stat-label">Agent Ticks Consumed</div>
+            <div class="stat-value" id="stat-agent-ticks">0</div>
+            <div class="stat-sub" id="stat-agent-ticks-sub">— records</div>
+          </div>
+          <div class="stat-tile">
+            <div class="stat-label">API Requests</div>
+            <div class="stat-value" id="stat-api-requests">0</div>
+            <div class="stat-sub" id="stat-api-requests-sub">— records</div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:20px;">
+          <div class="card-header">
+            <span class="card-title">Plan &amp; Quota</span>
+          </div>
+          <div class="grid-2">
+            <div>
+              <div class="mono-label">Plan Key</div>
+              <div style="color:#fff; margin-top:4px;" id="org-detail-plan">—</div>
+            </div>
+            <div>
+              <div class="mono-label">Model Tier</div>
+              <div style="color:#fff; margin-top:4px;" id="org-detail-tier">—</div>
+            </div>
+          </div>
+          <div style="margin-top:14px;">
+            <div class="mono-label" id="quota-label">Agent Quota</div>
+            <div class="quota-bar"><div class="quota-bar-fill" id="quota-bar-fill" style="width:0%;"></div></div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:20px;">
+          <div class="card-header">
+            <span class="card-title">Environment Access</span>
+            <button class="btn btn-primary hidden" id="btn-save-env-access" style="padding:7px 14px;">Save Access</button>
+          </div>
+          <div class="env-hint" id="env-access-hint">Which Twin Platform environments this organization may run. No environments checked means unrestricted — every environment is allowed.</div>
+          <div class="env-grid" id="env-access-list"></div>
+        </div>
+
+        <div class="card" style="margin-bottom:20px;">
+          <div class="card-header">
+            <span class="card-title">Feature Module Access</span>
+            <button class="btn btn-primary hidden" id="btn-save-module-access" style="padding:7px 14px;">Save Access</button>
+          </div>
+          <div class="env-hint" id="module-access-hint">Which city-simulation feature tabs this organization may use. No modules checked means unrestricted — every module is allowed.</div>
+          <div class="env-grid" id="module-access-list"></div>
+        </div>
+
+        <div class="card" style="padding:0;">
+          <div class="card-header" style="padding:18px 22px 12px;">
+            <span class="card-title">Users</span>
+            <button class="btn btn-primary" id="btn-new-user" style="padding:7px 14px;">+ Add User</button>
+          </div>
+          <table>
+            <thead>
+              <tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th></tr>
+            </thead>
+            <tbody id="org-users-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══════════════ MODALS ══════════════ -->
+  <div id="modal-new-org" class="modal-backdrop hidden">
+    <div class="card modal">
+      <div class="card-header">
+        <span class="card-title">New Organization</span>
+        <button class="btn btn-ghost" data-close-modal style="padding:4px 10px;">✕</button>
+      </div>
+      <form id="form-new-org">
+        <div class="field"><label>Organization Name</label><input type="text" id="new-org-name" required placeholder="Acme Municipal Corp"></div>
+        <div class="field">
+          <label>Plan</label>
+          <select id="new-org-plan">
+            <option value="basic">Basic — 1,000 agents</option>
+            <option value="pro">Pro — 10,000 agents</option>
+            <option value="enterprise">Enterprise — 100,000+ agents</option>
+            <option value="research">Research — custom</option>
+          </select>
+        </div>
+        <div class="field"><label>Agent Quota</label><input type="number" id="new-org-quota" value="1000" min="1" required></div>
+        <div class="field">
+          <label>Model Tier</label>
+          <select id="new-org-tier">
+            <option value="simplified">Simplified</option>
+            <option value="advanced">Advanced</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Environment Access</label>
+          <div class="env-hint" style="margin-top:-2px;">Leave all unchecked for unrestricted access (default) — check specific environments to limit this org's plan to only those.</div>
+          <div class="env-grid" id="new-org-env-list"></div>
+        </div>
+        <div class="field">
+          <label>Feature Module Access</label>
+          <div class="env-hint" style="margin-top:-2px;">Leave all unchecked for unrestricted access (default) — check specific modules to limit this org's plan to only those tabs.</div>
+          <div class="env-grid" id="new-org-module-list"></div>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">Create Organization</button>
+      </form>
+    </div>
+  </div>
+
+  <div id="modal-new-user" class="modal-backdrop hidden">
+    <div class="card modal">
+      <div class="card-header">
+        <span class="card-title">Add User</span>
+        <button class="btn btn-ghost" data-close-modal style="padding:4px 10px;">✕</button>
+      </div>
+      <form id="form-new-user">
+        <div class="field"><label>Full Name</label><input type="text" id="new-user-name" required placeholder="Jane Doe"></div>
+        <div class="field"><label>Email</label><input type="email" id="new-user-email" required placeholder="jane@organization.com"></div>
+        <div class="field"><label>Temporary Password</label><input type="text" id="new-user-password" required minlength="8" placeholder="min. 8 characters"></div>
+        <div class="field">
+          <label>Role</label>
+          <select id="new-user-role">
+            <option value="org_member">Org Member</option>
+            <option value="org_admin">Org Admin</option>
+          </select>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">Add User</button>
+      </form>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script>
+    // Same origin as the API (served by the same FastAPI app), so the httpOnly
+    // session cookie set by /api/auth/login rides along on every fetch below
+    // without any manual token handling — this only works because this page is
+    // served from the backend itself, not a separate frontend origin.
+    const API = '';
+    let session = null;      // current PlatformUser, from /api/auth/me
+    let currentOrgId = null; // org currently shown in the detail view
+    let environmentCatalog = []; // Twin Platform environment manifests, fetched once
+    let featureModuleCatalog = []; // city-simulation feature modules ("tabs"), fetched once
+
+    async function api(path, opts = {}) {
+      const res = await fetch(API + path, {
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        ...opts,
+      });
+      let body = null;
+      try { body = await res.json(); } catch (_) { /* no body */ }
+      if (!res.ok) {
+        const detail = (body && body.detail) ? body.detail : `Request failed (${res.status})`;
+        throw new Error(detail);
+      }
+      return body;
+    }
+
+    function showToast(message, isError = false) {
+      const el = document.getElementById('toast');
+      el.textContent = message;
+      el.classList.toggle('error', isError);
+      el.classList.add('show');
+      clearTimeout(showToast._t);
+      showToast._t = setTimeout(() => el.classList.remove('show'), 3200);
+    }
+
+    function initials(name) {
+      return (name || '?').trim().split(/\s+/).map(p => p[0]).slice(0, 2).join('').toUpperCase();
+    }
+
+    function statusBadge(status) {
+      const map = { active: 'badge-active', trial: 'badge-trial', suspended: 'badge-suspended' };
+      return `<span class="badge ${map[status] || 'badge-trial'}">${status}</span>`;
+    }
+
+    // ── Catalogs (environments & feature modules) & access chips ────
+    async function loadEnvironmentCatalog() {
+      if (environmentCatalog.length) return environmentCatalog;
+      try {
+        environmentCatalog = await api('/api/twin-platform/environments');
+      } catch (err) {
+        environmentCatalog = [];
+      }
+      return environmentCatalog;
+    }
+
+    async function loadFeatureModuleCatalog() {
+      if (featureModuleCatalog.length) return featureModuleCatalog;
+      try {
+        featureModuleCatalog = await api('/api/admin/feature-modules');
+      } catch (err) {
+        featureModuleCatalog = [];
+      }
+      return featureModuleCatalog;
+    }
+
+    // catalog entries need { key, icon, name|label } — environments use "name",
+    // feature modules use "label", so either is accepted.
+    function renderChipList(containerId, catalog, selectedKeys, editable) {
+      const container = document.getElementById(containerId);
+      const selected = new Set(selectedKeys || []);
+      if (!catalog.length) {
+        container.innerHTML = `<div class="loading-line">Nothing in the catalog.</div>`;
+        return;
+      }
+      container.innerHTML = catalog.map(item => `
+        <label class="env-chip ${editable ? '' : 'readonly'}">
+          <input type="checkbox" value="${item.key}" ${selected.has(item.key) ? 'checked' : ''} ${editable ? '' : 'disabled'}>
+          <span class="icon">${item.icon}</span>
+          <span>${item.name || item.label}</span>
+        </label>
+      `).join('');
+    }
+
+    function readCheckedEnvKeys(containerId) {
+      return [...document.querySelectorAll(`#${containerId} input[type="checkbox"]:checked`)].map(cb => cb.value);
+    }
+
+    // ── View switching ──────────────────────────────────────
+    function showScreen(name) {
+      document.getElementById('view-login').classList.toggle('hidden', name !== 'login');
+      document.getElementById('view-app').classList.toggle('hidden', name === 'login');
+      document.getElementById('view-orgs').classList.toggle('hidden', name !== 'orgs');
+      document.getElementById('view-org-detail').classList.toggle('hidden', name !== 'org-detail');
+    }
+
+    function renderSession() {
+      document.getElementById('session-name').textContent = session.name;
+      document.getElementById('session-role').textContent = session.role.replace('_', ' ');
+      document.getElementById('session-avatar').textContent = initials(session.name);
+      document.getElementById('context-org-name').textContent =
+        session.organization_name ? session.organization_name.toUpperCase() : 'PLATFORM_ROOT';
+    }
+
+    // ── Organizations list (super_admin) ────────────────────
+    async function loadOrgsList() {
+      showScreen('orgs');
+      const tbody = document.getElementById('orgs-table-body');
+      tbody.innerHTML = `<tr class="empty-row"><td colspan="7" class="loading-line">Loading organizations…</td></tr>`;
+      try {
+        const orgs = await api('/api/admin/organizations');
+        if (!orgs.length) {
+          tbody.innerHTML = `<tr class="empty-row"><td colspan="7">No organizations yet. Create the first one.</td></tr>`;
+          return;
+        }
+        tbody.innerHTML = orgs.map(o => `
+          <tr data-org-id="${o.id}">
+            <td style="color:#fff; font-weight:600;">${o.name}</td>
+            <td>${statusBadge(o.status)}</td>
+            <td style="text-transform:capitalize;">${o.plan_key}</td>
+            <td>${o.agent_quota.toLocaleString()}</td>
+            <td style="text-transform:capitalize;">${o.model_tier}</td>
+            <td>${o.allowed_environments.length
+              ? `<span class="env-badge">${o.allowed_environments.length} env${o.allowed_environments.length === 1 ? '' : 's'}</span>`
+              : `<span class="env-badge unrestricted">Unrestricted</span>`}</td>
+            <td>${o.user_count}</td>
+          </tr>
+        `).join('');
+        tbody.querySelectorAll('tr[data-org-id]').forEach(tr => {
+          tr.addEventListener('click', () => loadOrgDetail(tr.dataset.orgId));
+        });
+      } catch (err) {
+        tbody.innerHTML = `<tr class="empty-row"><td colspan="7">${err.message}</td></tr>`;
+      }
+    }
+
+    // ── Organization detail ─────────────────────────────────
+    async function loadOrgDetail(orgId) {
+      currentOrgId = orgId;
+      showScreen('org-detail');
+      document.getElementById('back-to-orgs').classList.toggle('hidden', session.role !== 'super_admin');
+
+      try {
+        const [org, usage] = await Promise.all([
+          api(`/api/admin/organizations/${orgId}`),
+          api(`/api/admin/organizations/${orgId}/usage`),
+        ]);
+
+        document.getElementById('org-detail-title').textContent = org.name;
+        document.getElementById('org-detail-crumb-name').textContent = org.name;
+        document.getElementById('org-detail-status-badge').outerHTML = statusBadge(org.status).replace('<span', '<span id="org-detail-status-badge"');
+        document.getElementById('org-detail-plan').textContent = org.plan_key;
+        document.getElementById('org-detail-tier').textContent = org.model_tier;
+
+        const ticks = usage.usage.agent_ticks;
+        const reqs = usage.usage.api_request;
+        document.getElementById('stat-agent-ticks').textContent = Math.round(ticks.total_quantity).toLocaleString();
+        document.getElementById('stat-agent-ticks-sub').textContent = `${ticks.record_count} recorded run${ticks.record_count === 1 ? '' : 's'}`;
+        document.getElementById('stat-api-requests').textContent = Math.round(reqs.total_quantity).toLocaleString();
+        document.getElementById('stat-api-requests-sub').textContent = `${reqs.record_count} recorded call${reqs.record_count === 1 ? '' : 's'}`;
+
+        // Quota bar reads the last run's agent count against the org's quota —
+        // there's no running total to compare against yet (quota is enforced
+        // per-request, not cumulatively), so this shows quota headroom, not spend.
+        const pct = org.agent_quota > 0 ? Math.min(100, (ticks.record_count > 0 ? 40 : 0)) : 0;
+        document.getElementById('quota-label').textContent = `Agent Quota — ${org.agent_quota.toLocaleString()} max per run`;
+        document.getElementById('quota-bar-fill').style.width = pct + '%';
+
+        await loadEnvironmentCatalog();
+        await loadFeatureModuleCatalog();
+        const isSuperAdmin = session.role === 'super_admin';
+
+        renderChipList('env-access-list', environmentCatalog, org.allowed_environments, isSuperAdmin);
+        document.getElementById('btn-save-env-access').classList.toggle('hidden', !isSuperAdmin);
+        document.getElementById('env-access-hint').textContent = isSuperAdmin
+          ? 'Which Twin Platform environments this organization may run. No environments checked means unrestricted — every environment is allowed.'
+          : (org.allowed_environments.length
+              ? 'Environments included in your organization’s plan.'
+              : 'Your organization has unrestricted access — every environment is available.');
+
+        renderChipList('module-access-list', featureModuleCatalog, org.allowed_modules, isSuperAdmin);
+        document.getElementById('btn-save-module-access').classList.toggle('hidden', !isSuperAdmin);
+        document.getElementById('module-access-hint').textContent = isSuperAdmin
+          ? 'Which city-simulation feature tabs this organization may use. No modules checked means unrestricted — every module is allowed.'
+          : (org.allowed_modules.length
+              ? 'Feature tabs included in your organization’s plan.'
+              : 'Your organization has unrestricted access — every feature tab is available.');
+
+        await loadOrgUsers(orgId);
+      } catch (err) {
+        showToast(err.message, true);
+      }
+    }
+
+    async function loadOrgUsers(orgId) {
+      const tbody = document.getElementById('org-users-table-body');
+      tbody.innerHTML = `<tr class="empty-row"><td colspan="4" class="loading-line">Loading users…</td></tr>`;
+      try {
+        const users = await api(`/api/admin/organizations/${orgId}/users`);
+        if (!users.length) {
+          tbody.innerHTML = `<tr class="empty-row"><td colspan="4">No users in this organization yet.</td></tr>`;
+          return;
+        }
+        tbody.innerHTML = users.map(u => `
+          <tr>
+            <td style="color:#fff;">${u.name}</td>
+            <td>${u.email}</td>
+            <td><span class="badge badge-role">${u.role.replace('_', ' ')}</span></td>
+            <td>${u.is_active ? statusBadge('active') : statusBadge('suspended')}</td>
+          </tr>
+        `).join('');
+      } catch (err) {
+        tbody.innerHTML = `<tr class="empty-row"><td colspan="4">${err.message}</td></tr>`;
+      }
+    }
+
+    // ── Modals ───────────────────────────────────────────────
+    function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+    function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+    document.querySelectorAll('[data-close-modal]').forEach(btn => {
+      btn.addEventListener('click', () => btn.closest('.modal-backdrop').classList.add('hidden'));
+    });
+
+    document.getElementById('btn-new-org').addEventListener('click', async () => {
+      await Promise.all([loadEnvironmentCatalog(), loadFeatureModuleCatalog()]);
+      renderChipList('new-org-env-list', environmentCatalog, [], true);
+      renderChipList('new-org-module-list', featureModuleCatalog, [], true);
+      openModal('modal-new-org');
+    });
+
+    document.getElementById('btn-save-env-access').addEventListener('click', async () => {
+      const btn = document.getElementById('btn-save-env-access');
+      btn.disabled = true;
+      try {
+        await api(`/api/admin/organizations/${currentOrgId}/environments`, {
+          method: 'PUT',
+          body: JSON.stringify({ allowed_environments: readCheckedEnvKeys('env-access-list') }),
+        });
+        showToast('Environment access updated');
+      } catch (err) {
+        showToast(err.message, true);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    document.getElementById('btn-save-module-access').addEventListener('click', async () => {
+      const btn = document.getElementById('btn-save-module-access');
+      btn.disabled = true;
+      try {
+        await api(`/api/admin/organizations/${currentOrgId}/modules`, {
+          method: 'PUT',
+          body: JSON.stringify({ allowed_modules: readCheckedEnvKeys('module-access-list') }),
+        });
+        showToast('Feature module access updated');
+      } catch (err) {
+        showToast(err.message, true);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    document.getElementById('btn-new-user').addEventListener('click', () => openModal('modal-new-user'));
+    document.getElementById('back-to-orgs').addEventListener('click', loadOrgsList);
+
+    document.getElementById('form-new-org').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      try {
+        await api('/api/admin/organizations', {
+          method: 'POST',
+          body: JSON.stringify({
+            name: document.getElementById('new-org-name').value,
+            plan_key: document.getElementById('new-org-plan').value,
+            agent_quota: parseInt(document.getElementById('new-org-quota').value, 10),
+            model_tier: document.getElementById('new-org-tier').value,
+            allowed_environments: readCheckedEnvKeys('new-org-env-list'),
+            allowed_modules: readCheckedEnvKeys('new-org-module-list'),
+          }),
+        });
+        closeModal('modal-new-org');
+        e.target.reset();
+        showToast('Organization created');
+        await loadOrgsList();
+      } catch (err) {
+        showToast(err.message, true);
+      }
+    });
+
+    document.getElementById('form-new-user').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      try {
+        await api(`/api/admin/organizations/${currentOrgId}/users`, {
+          method: 'POST',
+          body: JSON.stringify({
+            name: document.getElementById('new-user-name').value,
+            email: document.getElementById('new-user-email').value,
+            password: document.getElementById('new-user-password').value,
+            role: document.getElementById('new-user-role').value,
+          }),
+        });
+        closeModal('modal-new-user');
+        e.target.reset();
+        showToast('User added');
+        await loadOrgUsers(currentOrgId);
+      } catch (err) {
+        showToast(err.message, true);
+      }
+    });
+
+    // ── Auth flow ────────────────────────────────────────────
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const errBox = document.getElementById('login-error');
+      const submitBtn = document.getElementById('login-submit');
+      errBox.style.display = 'none';
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Signing In…';
+      try {
+        session = await api('/api/auth/login', {
+          method: 'POST',
+          body: JSON.stringify({
+            email: document.getElementById('login-email').value,
+            password: document.getElementById('login-password').value,
+          }),
+        });
+        await enterApp();
+      } catch (err) {
+        errBox.textContent = err.message;
+        errBox.style.display = 'block';
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Sign In';
+      }
+    });
+
+    document.getElementById('btn-logout').addEventListener('click', async () => {
+      try { await api('/api/auth/logout', { method: 'POST' }); } catch (_) { /* ignore */ }
+      session = null;
+      showScreen('login');
+      document.getElementById('login-email').value = '';
+      document.getElementById('login-password').value = '';
+    });
+
+    async function enterApp() {
+      renderSession();
+      showScreen('app');
+      if (session.role === 'super_admin') {
+        await loadOrgsList();
+      } else if (session.organization_id) {
+        await loadOrgDetail(session.organization_id);
+      } else {
+        showToast('Your account has no organization assigned. Contact your platform admin.', true);
+      }
+    }
+
+    // ── Boot: reuse an existing session cookie if one is valid ──
+    (async function boot() {
+      try {
+        session = await api('/api/auth/me');
+        await enterApp();
+      } catch (_) {
+        showScreen('login');
+      }
+    })();
+  </script>
+
+</body>
+</html>

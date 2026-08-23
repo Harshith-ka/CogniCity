@@ -36,13 +36,19 @@ class UserOut(BaseModel):
     role: str
     organization_id: str | None
     organization_name: str | None = None
+    # Only populated on POST /login — a non-browser client (the mobile app) has no
+    # httpOnly cookie jar to rely on, so it needs the raw JWT once, up front, to
+    # replay as `Authorization: Bearer <token>` on every later request. GET /me never
+    # sets this: it authenticates via a token the client already has, so re-issuing it
+    # here would just be redundant exposure.
+    token: str | None = None
 
 
-def _to_user_out(user: PlatformUser, org_name: str | None = None) -> UserOut:
+def _to_user_out(user: PlatformUser, org_name: str | None = None, token: str | None = None) -> UserOut:
     return UserOut(
         id=str(user.id), email=user.email, name=user.name, role=user.role.value,
         organization_id=str(user.organization_id) if user.organization_id else None,
-        organization_name=org_name,
+        organization_name=org_name, token=token,
     )
 
 
@@ -63,7 +69,7 @@ async def login(req: LoginRequest, response: Response, db: AsyncSession = Depend
     if user.organization_id:
         org = await db.get(Organization, user.organization_id)
         org_name = org.name if org else None
-    return _to_user_out(user, org_name)
+    return _to_user_out(user, org_name, token=token)
 
 
 @router.post("/logout")

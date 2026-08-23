@@ -25,6 +25,7 @@ from backend.app.models.infrastructure import UtilityGrid, InfraProject
 from backend.app.models.tourism import Hotel, TouristAttraction, TouristVisitor
 from backend.app.models.emergency_services import FireStation
 from backend.app.models.auth import Organization, PlatformUser
+from backend.app.models.usage import UsageRecord
 
 __all__ = [
     "Citizen",
@@ -82,4 +83,5 @@ __all__ = [
     "FireStation",
     "Organization",
     "PlatformUser",
+    "UsageRecord",
 ]

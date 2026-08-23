@@ -6,10 +6,11 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 import structlog
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
+from backend.app.auth.dependencies import require_feature
 from backend.app.api import ai_advisor as api_ai_advisor
 from backend.app.api import crime as api_crime
 from backend.app.api import disasters as api_disasters
@@ -60,6 +61,12 @@ async def lifespan(app: FastAPI):
         for table in ("hospitals", "schools", "police_units"):
             await conn.execute(text(f'ALTER TABLE {table} ADD COLUMN IF NOT EXISTS x DOUBLE PRECISION'))
             await conn.execute(text(f'ALTER TABLE {table} ADD COLUMN IF NOT EXISTS y DOUBLE PRECISION'))
+        await conn.execute(text(
+            "ALTER TABLE organizations ADD COLUMN IF NOT EXISTS allowed_environments JSON DEFAULT '[]'"
+        ))
+        await conn.execute(text(
+            "ALTER TABLE organizations ADD COLUMN IF NOT EXISTS allowed_modules JSON DEFAULT '[]'"
+        ))
 
     async with async_session() as db:
         from sqlalchemy import select
@@ -139,41 +146,49 @@ app.include_router(analytics.router, prefix="/api")
 app.include_router(economy.router, prefix="/api")
 app.include_router(city.router, prefix="/api")
 
-# Phase 2 routes
-app.include_router(communication.router, prefix="/api")
-app.include_router(traffic.router, prefix="/api")
-app.include_router(government.router, prefix="/api")
-app.include_router(relationships.router, prefix="/api")
+# Phase 2 routes — each gated behind its feature-module entitlement (see
+# backend/app/core/feature_modules.py). The dependency lives on the include_router
+# call, not inside the router files themselves, so none of these files needed to
+# change; an unauthenticated caller or an org with no restrictions set is unaffected.
+app.include_router(communication.router, prefix="/api", dependencies=[Depends(require_feature("communication"))])
+app.include_router(traffic.router, prefix="/api", dependencies=[Depends(require_feature("traffic"))])
+app.include_router(government.router, prefix="/api", dependencies=[Depends(require_feature("government"))])
+app.include_router(relationships.router, prefix="/api", dependencies=[Depends(require_feature("relationships"))])
 
 # Phase 3 routes
-app.include_router(api_disasters.router)
-app.include_router(api_pandemic.router)
-app.include_router(api_elections.router)
-app.include_router(api_social_media.router)
+app.include_router(api_disasters.router, dependencies=[Depends(require_feature("disasters"))])
+app.include_router(api_pandemic.router, dependencies=[Depends(require_feature("pandemic"))])
+app.include_router(api_elections.router, dependencies=[Depends(require_feature("elections"))])
+app.include_router(api_social_media.router, dependencies=[Depends(require_feature("social_media"))])
 
-# Phase 4 routes
-app.include_router(api_ai_advisor.router)
+# Phase 4 routes — vector_memory is AI Advisor's internal RAG store, not a standalone
+# customer-facing tab, so it isn't independently gated.
+app.include_router(api_ai_advisor.router, dependencies=[Depends(require_feature("ai_advisor"))])
 app.include_router(api_vector_memory.router)
-app.include_router(api_graph.router)
+app.include_router(api_graph.router, dependencies=[Depends(require_feature("graph"))])
 
 # Phase 5 routes
-app.include_router(api_weather.router)
-app.include_router(api_crime.router)
-app.include_router(api_healthcare.router)
-app.include_router(api_education.router)
-app.include_router(api_housing.router)
-app.include_router(api_news.router)
+app.include_router(api_weather.router, dependencies=[Depends(require_feature("weather"))])
+app.include_router(api_crime.router, dependencies=[Depends(require_feature("crime"))])
+app.include_router(api_healthcare.router, dependencies=[Depends(require_feature("healthcare"))])
+app.include_router(api_education.router, dependencies=[Depends(require_feature("education"))])
+app.include_router(api_housing.router, dependencies=[Depends(require_feature("housing"))])
+app.include_router(api_news.router, dependencies=[Depends(require_feature("news"))])
 
 # Phase 6 routes
-app.include_router(api_culture.router)
-app.include_router(api_environment.router)
-app.include_router(api_demographics.router)
-app.include_router(api_infrastructure.router)
-app.include_router(api_tourism.router)
-app.include_router(api_twin_platform.router)
+app.include_router(api_culture.router, dependencies=[Depends(require_feature("culture"))])
+app.include_router(api_environment.router, dependencies=[Depends(require_feature("environment"))])
+app.include_router(api_demographics.router, dependencies=[Depends(require_feature("demographics"))])
+app.include_router(api_infrastructure.router, dependencies=[Depends(require_feature("infrastructure"))])
+app.include_router(api_tourism.router, dependencies=[Depends(require_feature("tourism"))])
+# Premium platform capabilities — gates the marketplace/sandbox as a whole (both
+# listing and running); allowed_environments on the org then further narrows *which*
+# environments within an entitled marketplace. Unauthenticated calls are unaffected,
+# same as every other require_feature gate.
+app.include_router(api_twin_platform.router, dependencies=[Depends(require_feature("twin_platform"))])
 app.include_router(api_auth.router)
 app.include_router(api_admin.router)
-app.include_router(api_agent_eval.router)
+app.include_router(api_agent_eval.router, dependencies=[Depends(require_feature("agent_eval"))])
 
 # WebSocket
 app.include_router(websocket.router)
@@ -213,3 +228,13 @@ async def city_3d_view():
 @app.get("/dashboard")
 async def dashboard_view():
     return FileResponse(STATIC_DIR / "dashboard.html")
+
+
+@app.get("/admin")
+async def admin_portal_view():
+    # Iterated on like city3d — force no caching so a fix here doesn't require the
+    # user to know to hard-refresh before they can see it took effect.
+    return FileResponse(
+        STATIC_DIR / "admin.html",
+        headers={"Cache-Control": "no-store, no-cache, must-revalidate", "Pragma": "no-cache"},
+    )

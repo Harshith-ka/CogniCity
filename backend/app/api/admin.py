@@ -18,9 +18,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.app.auth.dependencies import get_current_user, require_org_access, require_roles
 from backend.app.auth.security import hash_password
 from backend.app.core.database import get_db
+from backend.app.core.feature_modules import FEATURE_MODULES
 from backend.app.models.auth import Organization, OrganizationStatus, PlatformUser, UserRole
+from backend.app.services.usage_metering import get_usage_summary
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
+
+
+@router.get("/feature-modules")
+async def list_feature_modules():
+    """The catalog the admin UI renders as checkboxes — same public-catalog pattern
+    as GET /api/twin-platform/environments."""
+    return FEATURE_MODULES
 
 
 # ─────────────────────────────────────────────────────────────
@@ -32,6 +41,8 @@ class OrgCreateRequest(BaseModel):
     plan_key: str = "basic"
     agent_quota: int = 1000
     model_tier: str = "simplified"
+    allowed_environments: list[str] = []
+    allowed_modules: list[str] = []
 
 
 class OrgOut(BaseModel):
@@ -41,13 +52,17 @@ class OrgOut(BaseModel):
     plan_key: str
     agent_quota: int
     model_tier: str
+    allowed_environments: list[str] = []
+    allowed_modules: list[str] = []
     user_count: int = 0
 
 
 def _to_org_out(org: Organization, user_count: int = 0) -> OrgOut:
     return OrgOut(
         id=str(org.id), name=org.name, status=org.status.value, plan_key=org.plan_key,
-        agent_quota=org.agent_quota, model_tier=org.model_tier, user_count=user_count,
+        agent_quota=org.agent_quota, model_tier=org.model_tier,
+        allowed_environments=org.allowed_environments or [],
+        allowed_modules=org.allowed_modules or [], user_count=user_count,
     )
 
 
@@ -63,6 +78,7 @@ async def create_organization(
 
     org = Organization(
         name=req.name, plan_key=req.plan_key, agent_quota=req.agent_quota, model_tier=req.model_tier,
+        allowed_environments=req.allowed_environments, allowed_modules=req.allowed_modules,
         status=OrganizationStatus.TRIAL,
     )
     db.add(org)
@@ -96,6 +112,69 @@ async def get_organization(
         raise HTTPException(status_code=404, detail="Organization not found")
     count_result = await db.execute(select(PlatformUser).where(PlatformUser.organization_id == org.id))
     return _to_org_out(org, len(list(count_result.scalars().all())))
+
+
+class OrgEnvironmentsUpdateRequest(BaseModel):
+    allowed_environments: list[str]
+
+
+@router.put("/organizations/{org_id}/environments", response_model=OrgOut)
+async def set_organization_environments(
+    org_id: uuid.UUID,
+    req: OrgEnvironmentsUpdateRequest,
+    db: AsyncSession = Depends(get_db),
+    # Entitlements gate what an org's plan includes — that's a billing-tier decision,
+    # not something an org_admin should be able to grant themselves, so this is
+    # platform-admin only (unlike the org-scoped user/usage endpoints above).
+    _admin: PlatformUser = Depends(require_roles(UserRole.SUPER_ADMIN)),
+):
+    org = await db.get(Organization, org_id)
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+
+    org.allowed_environments = req.allowed_environments
+    await db.commit()
+    await db.refresh(org)
+    count_result = await db.execute(select(PlatformUser).where(PlatformUser.organization_id == org.id))
+    return _to_org_out(org, len(list(count_result.scalars().all())))
+
+
+class OrgModulesUpdateRequest(BaseModel):
+    allowed_modules: list[str]
+
+
+@router.put("/organizations/{org_id}/modules", response_model=OrgOut)
+async def set_organization_modules(
+    org_id: uuid.UUID,
+    req: OrgModulesUpdateRequest,
+    db: AsyncSession = Depends(get_db),
+    _admin: PlatformUser = Depends(require_roles(UserRole.SUPER_ADMIN)),
+):
+    org = await db.get(Organization, org_id)
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+
+    org.allowed_modules = req.allowed_modules
+    await db.commit()
+    await db.refresh(org)
+    count_result = await db.execute(select(PlatformUser).where(PlatformUser.organization_id == org.id))
+    return _to_org_out(org, len(list(count_result.scalars().all())))
+
+
+@router.get("/organizations/{org_id}/usage")
+async def get_organization_usage(
+    org_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    _user: PlatformUser = Depends(require_org_access),
+):
+    org = await db.get(Organization, org_id)
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    return {
+        "organization_id": str(org_id),
+        "agent_quota": org.agent_quota,
+        "usage": await get_usage_summary(db, org_id),
+    }
 
 
 # ─────────────────────────────────────────────────────────────

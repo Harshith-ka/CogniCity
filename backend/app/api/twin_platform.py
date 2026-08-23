@@ -4,9 +4,15 @@ implements it."""
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.app.auth.dependencies import get_current_user_optional
+from backend.app.core.database import get_db
+from backend.app.models.auth import PlatformUser
+from backend.app.models.usage import UsageMetricType
+from backend.app.services.usage_metering import QuotaExceededError, check_agent_quota, record_usage
 from backend.app.twin_platform.registry import EnvironmentRegistry
 
 router = APIRouter(prefix="/api/twin-platform", tags=["twin_platform"])
@@ -47,10 +53,36 @@ class RunEnvironmentRequest(BaseModel):
 
 
 @router.post("/environments/{key}/run")
-async def run_environment(key: str, req: RunEnvironmentRequest):
+async def run_environment(
+    key: str,
+    req: RunEnvironmentRequest,
+    db: AsyncSession = Depends(get_db),
+    user: PlatformUser | None = Depends(get_current_user_optional),
+):
     manifest = EnvironmentRegistry.get(key)
     if not manifest:
         raise HTTPException(status_code=404, detail=f"Unknown environment: {key!r}")
+
+    # Metering/entitlement only applies to a logged-in user tied to an organization —
+    # an unauthenticated call (the existing, currently-open marketplace UI) runs
+    # exactly as it did before Phase 2, with no checks and nothing recorded.
+    org = None
+    if user and user.organization_id:
+        from backend.app.models.auth import Organization
+        org = await db.get(Organization, user.organization_id)
+        if org:
+            # allowed_environments == [] means unrestricted (the pre-entitlement
+            # default) — only a non-empty allow-list actually restricts access.
+            if org.allowed_environments and key not in org.allowed_environments:
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"{org.name}'s plan does not include the {manifest.name!r} environment",
+                )
+            if req.initial_agents:
+                try:
+                    check_agent_quota(org, req.initial_agents)
+                except QuotaExceededError as err:
+                    raise HTTPException(status_code=402, detail=str(err))
 
     max_ticks = MAX_TICKS_LIVE_CITY if key == "city" else MAX_TICKS_SANDBOX
     ticks = min(req.ticks, max_ticks)
@@ -71,6 +103,16 @@ async def run_environment(key: str, req: RunEnvironmentRequest):
         if req.event_type and i == event_tick:
             triggered_event = await env.generate_event(req.event_type, **req.event_params)
         tick_log.append(await env.step())
+
+    if org:
+        await record_usage(
+            db, org.id, UsageMetricType.API_REQUEST, quantity=1, environment_key=key,
+        )
+        if req.initial_agents:
+            await record_usage(
+                db, org.id, UsageMetricType.AGENT_TICKS,
+                quantity=req.initial_agents * ticks, environment_key=key,
+            )
 
     return {
         "environment": key,
