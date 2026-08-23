@@ -17,9 +17,13 @@ A next-generation simulation platform where thousands of autonomous AI citizens 
 docker compose up -d
 
 # API available at http://localhost:8000
-# Dashboard at http://localhost:8501
 # API docs at http://localhost:8000/docs
+# Operational dashboard (Streamlit) at http://localhost:8501
+# 3D city view & Urban Planner at http://localhost:8000/city3d
+# Multi-tenant admin portal at http://localhost:8000/admin
 ```
+
+Seeded super-admin login (change immediately outside local dev — see `.env.example`'s Security section): `admin@cognicity.local` / `changeme123`.
 
 ### Option 2: Local Development
 
@@ -165,6 +169,31 @@ python scripts/seed_city.py
 | `GET /api/tourism/attractions` | Tourist attractions |
 | `GET /api/tourism/visitors` | Active tourist visitors |
 
+### Phase 7 — Multi-Tenant SaaS Platform
+| Endpoint | Description |
+|---|---|
+| `POST /api/auth/signup` | Self-service org creation — lands on the Free Trial plan, auto-login |
+| `POST /api/auth/login` | Session login (httpOnly cookie for browsers, JWT in body for mobile) |
+| `POST /api/auth/logout` | Clear session |
+| `GET /api/auth/me` | Current user + role |
+| `GET /api/admin/organizations` | List/manage organizations (super_admin) |
+| `GET /api/admin/plans` | Plan catalog |
+| `POST /api/admin/organizations/{id}/subscribe` | Self-service plan upgrade (org_admin) |
+| `PUT /api/admin/organizations/{id}/plan` | Override an org's plan (super_admin) |
+| `GET /api/admin/organizations/{id}/billing` | Credits balance + transaction ledger |
+| `POST /api/admin/organizations/{id}/credits` | Grant credits (super_admin) |
+| `GET /api/twin-platform/environments` | List Twin Platform environments (city, hospital ward, airport terminal, factory line, university campus, shopping mall) |
+| `POST /api/twin-platform/environments/{key}/run` | Run a simulation in a marketplace environment |
+| `POST /api/eval/upload-model` | Upload a `.onnx` model for the Agent Sandbox (ONNX-only — no pickle/joblib, for RCE safety) |
+| `POST /api/eval/run-test` | Run an evaluation (mock benchmark, uploaded model, REST webhook, or OpenAI-chat protocol) against synthetic citizens |
+| `GET /api/eval/schema-presets` / `GET /api/eval/cohort-distributions` | Available evaluation domains and population cohorts |
+| `GET /api/ai-advisor/scorecard` | Real-time health/economy/safety/carbon scorecard for the mobile AI Advisor screen |
+| `GET /api/demographics/live-stats` | Live population aggregate (age, income, health) for the Population Explorer |
+| `POST /api/disasters/{id}/resolve` | Resolve an active disaster |
+| `GET /api/infrastructure/config` | Placeable infrastructure catalog for the Urban Planner (cost, service radius, capacity) |
+| `POST /api/infrastructure/trigger` | Commit an Urban Planner placement into the simulation |
+| `GET /metrics` | Prometheus metrics |
+
 ## Architecture
 
 ```
@@ -247,7 +276,29 @@ FastAPI Backend (v6.0)
     ├── Graph Service (Phase 4) — Neo4j community detection, influence paths
     ├── Economy Engine (salary, taxes, businesses)
     ├── Event Engine (disasters, health, social)
-    └── Analytics (real-time metrics + historical time-series)
+    ├── Analytics (real-time metrics + historical time-series)
+    ├── Multi-Tenant Auth (Phase 7)
+    │   ├── JWT bearer/httpOnly-cookie dual auth
+    │   ├── RBAC: super_admin / org_admin / org_member
+    │   ├── Per-org entitlements (allowed_environments, allowed_modules)
+    │   └── Self-service signup on the Free Trial plan
+    ├── Billing & Credits (Phase 7)
+    │   ├── Simulated credits ledger (grant/consume/adjust) — no real payment gateway
+    │   ├── 5-tier plan catalog (Trial → Researcher → Startup → Enterprise → Government)
+    │   └── Plan-linked entitlements applied on subscribe/signup
+    ├── Twin Platform (Phase 7)
+    │   ├── Environment marketplace (hospital ward, airport terminal, factory line,
+    │   │   university campus, shopping mall, plus the flagship city)
+    │   └── Per-run credit metering and quota enforcement
+    ├── Agent Evaluation Sandbox (Phase 7)
+    │   ├── Upload a real ONNX model, or point at a REST webhook / OpenAI-chat endpoint
+    │   ├── Runs against correlated synthetic citizen cohorts
+    │   └── Robustness, fairness, adversarial-failure, and adoption-rate scoring
+    └── Urban Planner (Phase 7)
+        ├── Place Hospital / School / Housing Colony / Fire Station / Police Station
+        ├── Draw Road / Bridge segments between two points
+        ├── Live AI-scored impact analysis before committing
+        └── Commits become real InfraProjects that complete over simulation ticks
 
 Databases
     ├── PostgreSQL (all persistent data)
@@ -261,43 +312,51 @@ Databases
 ```
 ai_twin_city/
 ├── backend/
+│   ├── alembic.ini           # Migration config — run as `python -m alembic -c backend/alembic.ini upgrade head`
 │   └── app/
-│       ├── agents/          # LangGraph citizen agents + LLM decisions
-│       ├── analytics/       # Metrics computation & history
-│       ├── api/             # Phase 3-4 standalone route files
-│       ├── api/routes/      # Phase 1-2 route files
-│       ├── communication/   # Conversations, gossip, LLM dialogue
-│       ├── core/            # Config, database, logging
-│       ├── disasters/       # Disaster simulation engine
-│       ├── economy/         # Economy engine
-│       ├── elections/       # Election system
-│       ├── engine/          # Simulation engine, world clock, city generator
-│       ├── events/          # Event engine
-│       ├── government/      # Government AI departments
-│       ├── memory/          # Memory engine + vector store
-│       ├── models/          # SQLAlchemy models (20 model files)
-│       ├── pandemic/        # Pandemic SEIR engine
-│       ├── schemas/         # Pydantic schemas
-│       ├── services/        # LLM service, graph service, city advisor
-│       ├── social_media/    # Advanced social media engine
-│       ├── traffic/         # Traffic & transportation engine
-│       ├── weather/         # Dynamic weather engine
-│       ├── crime/           # Crime & public safety engine
-│       ├── healthcare/      # Healthcare & wellness engine
-│       ├── education/       # Education & skills engine
-│       ├── housing/         # Housing & real estate engine
-│       ├── news/            # News & media engine
-│       ├── culture/         # Culture & entertainment engine
-│       ├── environment/     # Environment & sustainability engine
-│       ├── demographics/    # Demographics & population engine
-│       ├── infrastructure/  # Infrastructure & utilities engine
-│       └── tourism/         # Tourism engine
+│       ├── agents/           # LangGraph citizen agents + LLM decisions
+│       ├── agent_eval/       # Agent Evaluation Sandbox — ONNX model store, universal client
+│       ├── analytics/        # Metrics computation & history
+│       ├── api/              # Phase 3-7 standalone route files (incl. auth, admin, agent_eval, twin_platform)
+│       ├── api/routes/       # Phase 1-2 route files
+│       ├── auth/             # JWT security, RBAC dependencies, feature-module gating
+│       ├── communication/    # Conversations, gossip, LLM dialogue
+│       ├── core/             # Config, database, logging, plan catalog, rate limiting
+│       ├── disasters/        # Disaster simulation engine
+│       ├── economy/          # Economy engine
+│       ├── elections/        # Election system
+│       ├── engine/           # Simulation engine, world clock, city generator
+│       ├── events/           # Event engine
+│       ├── government/       # Government AI departments
+│       ├── memory/           # Memory engine + vector store
+│       ├── migrations/       # Alembic migration history
+│       ├── models/           # SQLAlchemy models
+│       ├── pandemic/         # Pandemic SEIR engine
+│       ├── schemas/          # Pydantic schemas
+│       ├── services/         # LLM service, graph service, city advisor, billing
+│       ├── social_media/     # Advanced social media engine
+│       ├── static/           # admin.html (admin portal), dashboard.html, city3d.html (3D Urban Planner)
+│       ├── traffic/          # Traffic & transportation engine
+│       ├── twin_platform/    # Environment marketplace registry
+│       ├── weather/          # Dynamic weather engine
+│       ├── crime/            # Crime & public safety engine
+│       ├── healthcare/       # Healthcare & wellness engine
+│       ├── education/        # Education & skills engine
+│       ├── housing/          # Housing & real estate engine
+│       ├── news/             # News & media engine
+│       ├── culture/          # Culture & entertainment engine
+│       ├── environment/      # Environment & sustainability engine
+│       ├── demographics/     # Demographics & population engine
+│       ├── infrastructure/   # Infrastructure & utilities engine + Urban Planner project completion
+│       └── tourism/          # Tourism engine
 ├── frontend/
-│   └── dashboard.py         # Streamlit dashboard (26 tabs)
+│   └── dashboard.py          # Streamlit operational dashboard — auth-gated, plan-scoped tabs, light/dark theme
+├── mobile_app/                # React Native / Expo client (see Mobile App section below)
 ├── deployment/docker/
 ├── scripts/
 ├── tests/
 ├── docker-compose.yml
+├── .env.example
 └── pyproject.toml
 ```
 
@@ -347,7 +406,7 @@ ai_twin_city/
 - **Housing & real estate**: Property market with 6 property types, rent collection, evictions, tenant matching, property value fluctuation based on district and demand, homelessness tracking
 - **News & media**: 6 AI news outlets with political bias, credibility, and sensationalism traits; auto-generated articles covering city events; LLM-enhanced reporting; opinion influence on citizens
 
-## Phase 6 Features (Current)
+## Phase 6 Features
 
 - **Culture & entertainment**: Venues (theaters, stadiums, museums, galleries, parks, clubs, restaurants, bars) generate visitor revenue; city festivals boost happiness for a share of the population over their duration
 - **Environment & sustainability**: City-wide air quality, water quality, noise, green coverage, carbon emissions, recycling rate, and renewable energy tracking; green initiatives (solar, wind, recycling, tree planting, EV charging, water treatment) that complete over time and improve metrics
@@ -355,3 +414,127 @@ ai_twin_city/
 - **Infrastructure & utilities**: Power, water, internet, and gas grids per district with capacity, load, reliability, and health; grids can suffer outages and receive maintenance; infrastructure projects (road repair, grid upgrades, pipe replacement, fiber install, bridge builds) improve reliability and capacity on completion
 - **Tourism**: Hotels and attractions across districts; tourists arrive based on city happiness and weather, spend money, visit attractions, and depart after their stay, contributing to hotel and attraction revenue
 - **26-tab dashboard**: All Phase 1-5 tabs plus Culture, Environment, Demographics, Infrastructure, and Tourism
+
+## Phase 7 Features (Current) — Multi-Tenant SaaS Platform
+
+Everything above is the simulation itself. Phase 7 wraps it in a real multi-tenant
+product layer: accounts, plans, billing, a 3D operator console, and a mobile client —
+so the simulation can be sold and operated as a platform, not just run standalone.
+
+### Business Model — Plans, Billing & Entitlements
+
+- **Self-service signup**: anyone can create an organization from the admin portal or
+  the Streamlit dashboard — no invite needed. Every new org starts on the **Free
+  Trial** plan (capped at 3 simulation runs) and can upgrade from inside the app.
+- **5-tier plan catalog** (`backend/app/core/plans.py`), each with its own credit
+  grant, agent quota, model tier, and — critically — its own **entitlements**:
+
+  | Plan | Price (₹/mo) | Credits | Agent Quota | Environments | Feature Modules |
+  |---|---|---|---|---|---|
+  | Free Trial | 0 | 100 | 200 | Shopping Mall only | Agent Sandbox + Twin Platform only |
+  | Researcher | 999 | 2,000 | 1,000 | +Hospital Ward, University | +Traffic, Weather, Healthcare, Education, Crime, AI Advisor |
+  | Startup | 4,999 | 15,000 | 10,000 | +Airport, Factory Line | Everything except Government/Elections |
+  | Enterprise | 25,000 | 100,000 | 100,000 | Unrestricted (incl. flagship city) | Unrestricted (every tab) |
+  | Government | Custom | 500,000 | 500,000 | Unrestricted | Unrestricted, incl. Government/Elections |
+
+- **Simulated credits ledger**: a real, auditable `CreditTransaction` ledger
+  (grant / consumption / adjustment) tracks every org's balance — deliberately not
+  wired to a real payment gateway, so it's safe to demo and test without moving
+  actual money.
+- **Entitlement enforcement is structural, not cosmetic**: an org's
+  `allowed_environments` / `allowed_modules` are checked server-side on every
+  request (`require_feature` dependency, wired at router-include time) — a
+  restricted plan gets a real 403, and the dashboard/mobile UI independently hides
+  tabs the org isn't entitled to, so the two stay in sync without either one being
+  the sole gatekeeper.
+- **Role-based control, independent of plan**: `super_admin` (platform operator, no
+  organization) always has unrestricted access and is the only role that can control
+  the shared simulation (start/stop/step, trigger disasters). `org_admin` and
+  `org_member` get read/operate access scoped to their own organization's plan.
+
+### 3D City View & Urban Planner (`/city3d`)
+
+A full Three.js-rendered PBR city — not a schematic map — built from the same live
+simulation data the API serves everywhere else (every citizen, building, and
+district position is real, not decorative).
+
+- **Architectural typology**: buildings render distinctly by type — Commercial
+  Tower, Retail/Plaza, Residential Complex, Public Civic/Government, Hospital/
+  Emergency (glass tower + red accent band + helipad), and Park/Urban Garden —
+  driven directly by each building's real `building_type` from `/api/city/buildings`.
+- **Urban Planner / Infrastructure Sandbox**: place new Hospitals, Schools, Housing
+  Colonies, Fire Stations, and Police Stations, or draw new Road/Bridge links between
+  two points — each with a live, AI-scored impact analysis (catchment population,
+  businesses served, projected metric deltas) before you commit. A confirmed
+  placement isn't cosmetic: it calls the same `/api/infrastructure/trigger` the
+  autonomous Government AI uses, creating a real `InfraProject` that completes over
+  simulation ticks into an actual Hospital/School/PoliceUnit/FireStation/Location row.
+- **Compare Locations mode**: stage up to 3 candidate sites side-by-side before
+  committing to any of them.
+- **Disaster control**: trigger any of the 7 disaster types at a clicked point with
+  adjustable severity; a live-updating, scrollable detail panel shows phase,
+  intensity, casualties, evacuation zones, and exactly which hospitals/police/fire
+  units are responding and with how many staff — sourced from the same disaster
+  engine the REST API exposes.
+- **Walk Mode, Heatmap, and District boundaries**: first-person street-level
+  navigation, a data-driven population/activity heatmap overlay, and glowing
+  per-district boundary rings with a minimap for fast navigation across a large city.
+- **Utility Maintenance**: Grid Modernization and Fiber Optic Network upgrade
+  actions feed the same infrastructure reliability model as the REST API.
+
+### Dashboard & Admin Portal
+
+- **Streamlit operational dashboard** (`frontend/dashboard.py`, `:8501`): real
+  login (JWT bearer, no bypass), self-service signup, and every tab gated by the
+  logged-in org's actual plan entitlements — an org on Trial simply doesn't see
+  tabs it isn't paying for, instead of seeing them disabled. Shows live Organization
+  Usage (plan, agent quota, credits balance, agent-ticks consumed, simulations run).
+  Simulation start/stop/step and event triggers are `super_admin`-only; org accounts
+  get read-only visibility into their own organization's data. Includes a light/dark
+  theme toggle that doesn't touch any existing dashboard logic.
+- **Admin portal** (`backend/app/static/admin.html`, `/admin`): the shared surface
+  for both super-admin platform operations (organization management, plan overrides,
+  credit grants, the full transaction ledger) and org-level self-service (plan cards
+  with Subscribe buttons, billing summary) — same page, different controls per role.
+- **Agent Evaluation Sandbox** (in both the dashboard and mobile app): test a
+  candidate AI model against correlated synthetic citizen cohorts across domain
+  presets (cardiology, credit lending, real estate, e-commerce). Supports a mock
+  benchmark, a REST webhook, an OpenAI-chat endpoint, or **uploading a real `.onnx`
+  file** — ONNX-only, deliberately not pickle/joblib, since self-signup means
+  untrusted users can upload files and arbitrary deserialization is a real RCE risk.
+  Returns robustness, fairness, adversarial-failure-rate, and adoption-rate scoring
+  plus demographic fairness breakdowns and an executive summary.
+
+### Mobile App (`mobile_app/` — React Native + Expo)
+
+A full Expo Router app (`expo ~54`, `react-native 0.81`) targeting iOS, Android, and
+web from one codebase, backed by the same REST/WebSocket API as everything else —
+nothing in it is mocked-and-disconnected by design; where it still is, that's tracked
+as a known gap, not a feature.
+
+- **Auth**: real Sign In / Sign Up (self-service org creation), JWT bearer token
+  persisted via AsyncStorage, one-tap logout, entitlement-filtered bottom
+  navigation (a restricted org's tab bar only shows what its plan includes).
+- **Command Center**: live system overview — active digital twins, agent/environment/
+  experiment counts, virtual time and simulation speed control.
+- **Digital Twin Catalog & Marketplace**: browse and launch the Twin Platform's
+  environments (Smart City Metropolitan, Metropolitan Hospital, International
+  Airport Hub, Mega Automotive Factory, Central University Campus, Solar-Wind
+  Microgrid), filtered to what the org's plan actually allows.
+- **Agent Sandbox**: the same real evaluation flow as the dashboard's — protocol
+  picker, `.onnx` upload via `expo-document-picker`, domain/sample-size controls,
+  and a live results scorecard, run against the real backend.
+- **AI Advisor**: a real diagnostic scorecard (health/economy/safety/carbon index,
+  all derived from live city metrics — not hardcoded) plus an interactive
+  scenario-question chat backed by the LLM-powered City Advisor.
+- **Population Explorer**: live aggregate stats (average age, median income, average
+  health) computed directly from the citizen table, with a searchable, filterable
+  citizen roster.
+- **Disaster & Pandemic Operations**: trigger and resolve real disasters against the
+  live backend, with the same evacuation-zone and response data the 3D view shows.
+- **Billing**: real plan cards fetched from the plan catalog, self-service subscribe
+  with a double-submit guard, and live credits/usage from the org's actual billing
+  summary.
+- **Command & governance screens**: Live Map, Alerts, Elections, Government/Policy
+  Mode, Infrastructure, Social Feed, Reasoning Inspector (agent decision explainer),
+  Experiment Watch/Comparison, Report Generator, and Collaboration/Team Workspace.
