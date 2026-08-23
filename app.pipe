@@ -1,0 +1,7 @@
+# app.pipe
+#
+# Placeholder — there's no established convention for a .pipe file in this stack
+# (FastAPI backend, Streamlit dashboard, React Native mobile app). Named pipes
+# (FIFOs) are normally an OS-level IPC primitive created at runtime with mkfifo,
+# not a file checked into source control, so this is just a reserved spot: replace
+# this content with whatever this file is actually meant to hold.
