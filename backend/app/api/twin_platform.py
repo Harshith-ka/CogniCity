@@ -12,7 +12,10 @@ from backend.app.auth.dependencies import get_current_user_optional
 from backend.app.core.database import get_db
 from backend.app.models.auth import PlatformUser
 from backend.app.models.usage import UsageMetricType
-from backend.app.services.usage_metering import QuotaExceededError, check_agent_quota, record_usage
+from backend.app.services.usage_metering import (
+    QuotaExceededError, SimulationLimitReachedError,
+    check_agent_quota, check_simulation_run_limit, record_usage,
+)
 from backend.app.services.billing import InsufficientCreditsError, check_credit_balance, consume_credits
 from backend.app.twin_platform.registry import EnvironmentRegistry
 
@@ -86,6 +89,11 @@ async def run_environment(
                     status_code=403,
                     detail=f"{org.name}'s plan does not include the {manifest.name!r} environment",
                 )
+            try:
+                await check_simulation_run_limit(db, org)
+            except SimulationLimitReachedError as err:
+                raise HTTPException(status_code=402, detail=str(err))
+
             if req.initial_agents:
                 try:
                     check_agent_quota(org, req.initial_agents)

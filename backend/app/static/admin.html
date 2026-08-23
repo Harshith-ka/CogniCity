@@ -271,6 +271,17 @@
       border: 1px solid var(--border-bright); color: var(--text-primary); background: var(--bg-surface);
     }
     .env-badge.unrestricted { color: var(--green-nominal); border-color: var(--green-nominal); background: rgba(0,230,118,0.08); }
+
+    /* ── Plan cards (self-service subscribe) ─────────────── */
+    .plan-card {
+      border: 1px solid var(--border-dim); border-radius: 6px; padding: 12px;
+      background: var(--bg-surface); display: flex; flex-direction: column; gap: 6px;
+    }
+    .plan-card.current { border-color: var(--cyan-primary); background: var(--cyan-dim); }
+    .plan-card-name { font-family: 'Chakra Petch', sans-serif; font-weight: 700; color: #fff; font-size: 14px; }
+    .plan-card-price { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--accent); }
+    .plan-card-desc { font-size: 11px; color: var(--text-muted); line-height: 1.4; flex: 1; }
+    .plan-card-meta { font-size: 10px; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; }
   </style>
 </head>
 
@@ -296,7 +307,35 @@
         </div>
         <button type="submit" id="login-submit" class="btn btn-primary btn-block" style="margin-top: 6px;">Sign In</button>
       </form>
-      <div class="login-hint">Access is provisioned per-organization.<br>Contact your platform admin for credentials.</div>
+
+      <form id="signup-form" class="hidden">
+        <div class="field">
+          <label for="signup-org-name">Organization Name</label>
+          <input type="text" id="signup-org-name" required placeholder="Acme Research Lab">
+        </div>
+        <div class="field">
+          <label for="signup-name">Your Name</label>
+          <input type="text" id="signup-name" required placeholder="Jane Doe">
+        </div>
+        <div class="field">
+          <label for="signup-email">Email</label>
+          <input type="email" id="signup-email" required autocomplete="username" placeholder="you@organization.com">
+        </div>
+        <div class="field">
+          <label for="signup-password">Password</label>
+          <input type="password" id="signup-password" required minlength="8" autocomplete="new-password" placeholder="min. 8 characters">
+        </div>
+        <button type="submit" id="signup-submit" class="btn btn-primary btn-block" style="margin-top: 6px;">Create Account</button>
+        <div class="login-hint" style="margin-top:12px;">Starts on the Free Trial plan — 3 simulation runs, upgrade anytime from Billing.</div>
+      </form>
+
+      <div class="login-hint" id="login-toggle-hint">
+        Access is provisioned per-organization.<br>Contact your platform admin, or
+        <a href="#" id="link-show-signup" style="color:var(--cyan-primary);">create a new organization</a>.
+      </div>
+      <div class="login-hint hidden" id="signup-toggle-hint">
+        Already have an account? <a href="#" id="link-show-login" style="color:var(--cyan-primary);">Sign in</a>.
+      </div>
     </div>
   </div>
 
@@ -408,6 +447,11 @@
             </div>
             <button class="btn btn-primary" id="btn-grant-credits" style="padding:9px 16px;">Grant</button>
           </div>
+          <div id="billing-plans-section" class="hidden" style="margin-bottom:16px;">
+            <div class="mono-label" style="margin-bottom:8px;">Available Plans</div>
+            <div class="env-grid" id="billing-plan-cards"></div>
+          </div>
+
           <div class="mono-label" style="margin-bottom:8px;">Recent Transactions</div>
           <div id="billing-transactions" style="display:flex; flex-direction:column; gap:6px;"></div>
         </div>
@@ -613,6 +657,24 @@
       document.getElementById('billing-credits-balance').textContent = Math.round(billing.credits_balance).toLocaleString();
 
       document.getElementById('billing-grant-form').classList.toggle('hidden', !isSuperAdmin);
+
+      // Self-service "Subscribe" cards — org_admin only (org_member is blocked by
+      // the backend anyway; super_admin already has the raw override dropdown above).
+      const showPlanCards = !isSuperAdmin && session.role === 'org_admin';
+      document.getElementById('billing-plans-section').classList.toggle('hidden', !showPlanCards);
+      if (showPlanCards) {
+        document.getElementById('billing-plan-cards').innerHTML = planCatalog.map(p => `
+          <div class="plan-card ${p.key === org.plan_key ? 'current' : ''}">
+            <div class="plan-card-name">${p.name}</div>
+            <div class="plan-card-price">${formatInr(p.monthly_price_inr)}</div>
+            <div class="plan-card-desc">${p.description}</div>
+            <div class="plan-card-meta">${p.included_credits.toLocaleString()} credits · ${p.agent_quota.toLocaleString()} agents${p.max_simulation_runs ? ` · ${p.max_simulation_runs} runs max` : ''}</div>
+            ${p.key === org.plan_key
+              ? `<button class="btn btn-ghost" disabled style="margin-top:4px;">Current Plan</button>`
+              : `<button class="btn btn-primary" data-subscribe-plan="${p.key}" style="margin-top:4px;">Subscribe</button>`}
+          </div>
+        `).join('');
+      }
 
       const txContainer = document.getElementById('billing-transactions');
       if (!billing.recent_transactions.length) {
@@ -845,6 +907,27 @@
       }
     });
 
+    document.getElementById('billing-plan-cards').addEventListener('click', async (e) => {
+      const btn = e.target.closest('[data-subscribe-plan]');
+      if (!btn) return;
+      const planKey = btn.dataset.subscribePlan;
+      const plan = planCatalog.find(p => p.key === planKey);
+      btn.disabled = true;
+      btn.textContent = 'Subscribing…';
+      try {
+        await api(`/api/admin/organizations/${currentOrgId}/subscribe`, {
+          method: 'POST',
+          body: JSON.stringify({ plan_key: planKey }),
+        });
+        showToast(`Subscribed to ${plan ? plan.name : planKey}`);
+        await loadOrgDetail(currentOrgId);
+      } catch (err) {
+        showToast(err.message, true);
+        btn.disabled = false;
+        btn.textContent = 'Subscribe';
+      }
+    });
+
     document.getElementById('billing-plan-select').addEventListener('change', async (e) => {
       const select = e.target;
       select.disabled = true;
@@ -958,6 +1041,51 @@
       } finally {
         submitBtn.disabled = false;
         submitBtn.textContent = 'Sign In';
+      }
+    });
+
+    document.getElementById('link-show-signup').addEventListener('click', (e) => {
+      e.preventDefault();
+      document.getElementById('login-form').classList.add('hidden');
+      document.getElementById('login-toggle-hint').classList.add('hidden');
+      document.getElementById('signup-form').classList.remove('hidden');
+      document.getElementById('signup-toggle-hint').classList.remove('hidden');
+      document.getElementById('login-error').style.display = 'none';
+    });
+
+    document.getElementById('link-show-login').addEventListener('click', (e) => {
+      e.preventDefault();
+      document.getElementById('signup-form').classList.add('hidden');
+      document.getElementById('signup-toggle-hint').classList.add('hidden');
+      document.getElementById('login-form').classList.remove('hidden');
+      document.getElementById('login-toggle-hint').classList.remove('hidden');
+      document.getElementById('login-error').style.display = 'none';
+    });
+
+    document.getElementById('signup-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const errBox = document.getElementById('login-error');
+      const submitBtn = document.getElementById('signup-submit');
+      errBox.style.display = 'none';
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Creating Account…';
+      try {
+        session = await api('/api/auth/signup', {
+          method: 'POST',
+          body: JSON.stringify({
+            organization_name: document.getElementById('signup-org-name').value,
+            name: document.getElementById('signup-name').value,
+            email: document.getElementById('signup-email').value,
+            password: document.getElementById('signup-password').value,
+          }),
+        });
+        await enterApp();
+      } catch (err) {
+        errBox.textContent = err.message;
+        errBox.style.display = 'block';
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Create Account';
       }
     });
 

@@ -15,7 +15,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.app.auth.dependencies import SESSION_COOKIE_NAME, get_current_user
 from backend.app.auth.security import create_access_token, hash_password, verify_password
 from backend.app.core.database import get_db
-from backend.app.models.auth import Organization, PlatformUser, UserRole
+from backend.app.core.plans import PLAN_BY_KEY
+from backend.app.models.auth import Organization, OrganizationStatus, PlatformUser, UserRole
+from backend.app.services.billing import grant_credits
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -70,6 +72,57 @@ async def login(req: LoginRequest, response: Response, db: AsyncSession = Depend
         org = await db.get(Organization, user.organization_id)
         org_name = org.name if org else None
     return _to_user_out(user, org_name, token=token)
+
+
+class SignupRequest(BaseModel):
+    email: str
+    password: str
+    name: str
+    organization_name: str
+
+
+@router.post("/signup", response_model=UserOut)
+async def signup(req: SignupRequest, response: Response, db: AsyncSession = Depends(get_db)):
+    """Self-service account creation — no invite needed. Every self-signup lands on
+    the free Trial plan (see backend/app/core/plans.py: 3 simulation runs, small
+    quota/credits) and becomes org_admin of their own brand-new organization, since
+    there's no existing admin to have invited them into one. Upgrading off the trial
+    happens via POST /organizations/{id}/subscribe once they're logged in."""
+    if len(req.password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
+
+    existing_user = await db.execute(select(PlatformUser).where(PlatformUser.email == req.email.lower()))
+    if existing_user.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail=f"A user with email {req.email!r} already exists")
+
+    existing_org = await db.execute(select(Organization).where(Organization.name == req.organization_name))
+    if existing_org.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail=f"Organization {req.organization_name!r} already exists")
+
+    trial = PLAN_BY_KEY["trial"]
+    org = Organization(
+        name=req.organization_name, status=OrganizationStatus.TRIAL,
+        plan_key=trial["key"], agent_quota=trial["agent_quota"], model_tier=trial["model_tier"],
+        allowed_environments=list(trial["allowed_environments"]), allowed_modules=list(trial["allowed_modules"]),
+    )
+    db.add(org)
+    await db.flush()  # assigns org.id without a full commit yet
+    await grant_credits(db, org, trial["included_credits"], "Welcome — free trial credits")
+
+    user = PlatformUser(
+        organization_id=org.id, email=req.email.lower(), name=req.name,
+        hashed_password=hash_password(req.password), role=UserRole.ORG_ADMIN,
+    )
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+
+    token = create_access_token(
+        subject=str(user.id),
+        extra_claims={"role": user.role.value, "org_id": str(org.id)},
+    )
+    response.set_cookie(SESSION_COOKIE_NAME, token, **COOKIE_KWARGS)
+    return _to_user_out(user, org.name, token=token)
 
 
 @router.post("/logout")

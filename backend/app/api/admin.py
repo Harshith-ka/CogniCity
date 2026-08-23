@@ -21,7 +21,7 @@ from backend.app.core.database import get_db
 from backend.app.core.feature_modules import FEATURE_MODULES
 from backend.app.core.plans import PLANS
 from backend.app.models.auth import Organization, OrganizationStatus, PlatformUser, UserRole
-from backend.app.services.billing import grant_credits, get_billing_summary
+from backend.app.services.billing import grant_credits, get_billing_summary, subscribe_to_plan, UnknownPlanError
 from backend.app.services.usage_metering import get_usage_summary
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
@@ -212,8 +212,40 @@ async def set_organization_plan(
     org.plan_key = plan["key"]
     org.agent_quota = plan["agent_quota"]
     org.model_tier = plan["model_tier"]
+    org.allowed_environments = list(plan.get("allowed_environments", []))
+    org.allowed_modules = list(plan.get("allowed_modules", []))
     await db.commit()
     await db.refresh(org)
+    count_result = await db.execute(select(PlatformUser).where(PlatformUser.organization_id == org.id))
+    return _to_org_out(org, len(list(count_result.scalars().all())))
+
+
+class SubscribeRequest(BaseModel):
+    plan_key: str
+
+
+@router.post("/organizations/{org_id}/subscribe", response_model=OrgOut)
+async def subscribe_organization(
+    org_id: uuid.UUID,
+    req: SubscribeRequest,
+    db: AsyncSession = Depends(get_db),
+    # Self-service — an org_admin can upgrade their own org's plan (require_org_access
+    # allows the org's own admin, not just super_admin). Unlike the raw PUT /plan
+    # override above, this is the "purchase" action and grants that plan's credits.
+    caller: PlatformUser = Depends(require_org_access),
+):
+    if caller.role == UserRole.ORG_MEMBER:
+        raise HTTPException(status_code=403, detail="Only an org_admin can change the organization's plan")
+
+    org = await db.get(Organization, org_id)
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+
+    try:
+        org = await subscribe_to_plan(db, org, req.plan_key)
+    except UnknownPlanError as err:
+        raise HTTPException(status_code=400, detail=str(err))
+
     count_result = await db.execute(select(PlatformUser).where(PlatformUser.organization_id == org.id))
     return _to_org_out(org, len(list(count_result.scalars().all())))
 
