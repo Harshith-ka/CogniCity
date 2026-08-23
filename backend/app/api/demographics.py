@@ -5,9 +5,48 @@ from sqlalchemy import select, func as sqlfunc
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.core.database import get_db
+from backend.app.models.citizen import Citizen
 from backend.app.models.demographics import LifeEvent, PopulationSnapshot
 
 router = APIRouter(prefix="/api/demographics", tags=["demographics"])
+
+
+@router.get("/live-stats")
+async def live_population_stats(db: AsyncSession = Depends(get_db)):
+    """Backs the mobile Population Explorer's banner — replaces what used to be
+    hardcoded literals (avg age, income, "BMI") with a direct aggregate over the live
+    citizens table. Unlike /stats below, this needs no PopulationSnapshot job to have
+    run first, so it's never "no_data" as long as the city has been seeded.
+
+    There's no BMI concept anywhere in the citizen model — it was never simulated, so
+    reporting it would just be inventing a number. avg_health (the same 0-1 field
+    every other health metric in this app is built on) is the honest replacement.
+    """
+    result = await db.execute(
+        select(
+            sqlfunc.count(Citizen.id),
+            sqlfunc.avg(Citizen.age),
+            sqlfunc.avg(Citizen.salary),
+            sqlfunc.avg(Citizen.health),
+        ).where(Citizen.is_alive == True)  # noqa: E712
+    )
+    count, avg_age, avg_salary, avg_health = result.one()
+    if not count:
+        return {"status": "no_data"}
+
+    median_salary_result = await db.execute(
+        select(Citizen.salary).where(Citizen.is_alive == True).order_by(Citizen.salary)  # noqa: E712
+    )
+    salaries = [row[0] for row in median_salary_result.all()]
+    median_income = salaries[len(salaries) // 2] if salaries else 0.0
+
+    return {
+        "population": count,
+        "avg_age": round(float(avg_age), 1),
+        "avg_income": round(float(avg_salary), 2),
+        "median_income": round(float(median_income), 2),
+        "avg_health_pct": round(float(avg_health) * 100, 1),
+    }
 
 
 @router.get("/stats")

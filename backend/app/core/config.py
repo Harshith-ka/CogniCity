@@ -39,14 +39,57 @@ class Settings(BaseSettings):
 
     # Admin portal auth (Phase 1 of the multi-tenant platform plan). jwt_secret_key
     # MUST be overridden via env var outside local dev — the default here is only safe
-    # because this is a single local deployment with no real tenants yet.
+    # because this is a single local deployment with no real tenants yet. See
+    # _validate_production_config() below, which refuses to boot with these defaults
+    # once APP_ENV isn't "development".
     jwt_secret_key: str = "dev-only-insecure-secret-change-before-any-real-deployment"
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 60 * 24  # 24h session
     initial_admin_email: str = "admin@cognicity.local"
     initial_admin_password: str = "changeme123"
 
+    # Comma-separated allowed browser origins for CORS. "*" is only accepted while
+    # app_env == "development" — see _validate_production_config(). Real browser
+    # clients here are the Expo web build and any future standalone web frontend;
+    # server-side callers (Streamlit, native mobile) aren't subject to CORS at all.
+    cors_allowed_origins: str = "*"
+
+    # Requests per minute per client IP for unauthenticated auth endpoints
+    # (login/signup) — the only endpoints cheap enough for credential-stuffing /
+    # signup-spam to matter before a real WAF is in front of this.
+    auth_rate_limit_per_minute: int = 10
+
     model_config = {"env_file": ".env", "extra": "ignore"}
 
 
 settings = Settings()
+
+
+def _validate_production_config() -> None:
+    """Fail loud at startup rather than silently serving insecure defaults.
+
+    Local dev (APP_ENV=development, the .env default) is unaffected. Anything else —
+    staging, production, a forgotten APP_ENV in a real deployment — must have every
+    one of these overridden or the process refuses to start.
+    """
+    if settings.app_env == "development":
+        return
+
+    problems = []
+    if settings.jwt_secret_key == "dev-only-insecure-secret-change-before-any-real-deployment":
+        problems.append("JWT_SECRET_KEY is still the insecure default — set a real random secret.")
+    if settings.initial_admin_password == "changeme123":
+        problems.append("INITIAL_ADMIN_PASSWORD is still the seeded default — set a real password.")
+    if settings.cors_allowed_origins.strip() in ("", "*"):
+        problems.append("CORS_ALLOWED_ORIGINS must be a specific comma-separated origin list outside development.")
+    if settings.debug:
+        problems.append("DEBUG must be false outside development.")
+
+    if problems:
+        raise RuntimeError(
+            f"Refusing to start with APP_ENV={settings.app_env!r} and insecure config:\n  - "
+            + "\n  - ".join(problems)
+        )
+
+
+_validate_production_config()

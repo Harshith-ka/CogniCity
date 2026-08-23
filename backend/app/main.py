@@ -6,11 +6,16 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 import structlog
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
+from prometheus_fastapi_instrumentator import Instrumentator
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 
 from backend.app.auth.dependencies import require_feature
+from backend.app.core.rate_limit import limiter
 from backend.app.api import ai_advisor as api_ai_advisor
 from backend.app.api import crime as api_crime
 from backend.app.api import disasters as api_disasters
@@ -39,7 +44,7 @@ from backend.app.api.routes import (
 )
 from backend.app.api.routes.simulation import set_simulation_engine
 from backend.app.core.config import settings
-from backend.app.core.database import engine as db_engine, async_session, Base
+from backend.app.core.database import engine as db_engine, async_session
 from backend.app.core.logging import setup_logging
 from backend.app.engine.city_generator import generate_city
 from backend.app.engine.simulation import SimulationEngine
@@ -52,24 +57,13 @@ async def lifespan(app: FastAPI):
     setup_logging()
     log.info("starting_app", app=settings.app_name)
 
-    async with db_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-        # create_all only creates whole new tables — it never alters an existing one, so
-        # the x/y columns added to Hospital/School/PoliceUnit for exact Build Mode
-        # placement need an explicit, idempotent ALTER TABLE (no Alembic in this project).
-        from sqlalchemy import text
-        for table in ("hospitals", "schools", "police_units"):
-            await conn.execute(text(f'ALTER TABLE {table} ADD COLUMN IF NOT EXISTS x DOUBLE PRECISION'))
-            await conn.execute(text(f'ALTER TABLE {table} ADD COLUMN IF NOT EXISTS y DOUBLE PRECISION'))
-        await conn.execute(text(
-            "ALTER TABLE organizations ADD COLUMN IF NOT EXISTS allowed_environments JSON DEFAULT '[]'"
-        ))
-        await conn.execute(text(
-            "ALTER TABLE organizations ADD COLUMN IF NOT EXISTS allowed_modules JSON DEFAULT '[]'"
-        ))
-        await conn.execute(text(
-            "ALTER TABLE organizations ADD COLUMN IF NOT EXISTS credits_balance DOUBLE PRECISION DEFAULT 0.0"
-        ))
+    # Schema is now managed by Alembic (backend/app/migrations/), not by this function —
+    # this used to run Base.metadata.create_all plus a growing pile of ad-hoc
+    # `ALTER TABLE ADD COLUMN IF NOT EXISTS` statements for every column added after
+    # the fact, with no version history and no way to review or roll back a change.
+    # The Docker image now runs `alembic upgrade head` before uvicorn starts (see
+    # deployment/docker/Dockerfile); a bare `python -m uvicorn` during local dev must
+    # do the same once first: `alembic -c backend/alembic.ini upgrade head`.
 
     async with async_session() as db:
         from sqlalchemy import select
@@ -133,10 +127,38 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Rate limiting — currently only applied to /api/auth/login and /api/auth/signup
+# (see their @limiter.limit decorators), the two endpoints cheap enough for
+# credential-stuffing / signup-spam to matter before a real WAF sits in front of this.
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
+
+# Prometheus metrics at /metrics — request count/latency/in-flight per route, the
+# minimum viable "did something break" signal until a real APM is wired in.
+Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    # FastAPI's own default already does this for DEBUG, but that leaks a full
+    # traceback to the client whenever it's left on by accident. This makes the
+    # behavior explicit and independent of DEBUG: always log the real exception
+    # server-side, never leak it to the caller.
+    log.error("unhandled_exception", path=request.url.path, method=request.method, error=str(exc), exc_info=exc)
+    return JSONResponse(status_code=500, content={"detail": "Internal server error"})
+
+
+# Browsers reject "*" combined with allow_credentials=True outright, so the two are
+# tied together here: wildcard-with-no-credentials for permissive local dev, or a
+# real origin list with credentials once CORS_ALLOWED_ORIGINS is actually configured
+# (config.py's _validate_production_config() enforces the latter outside development).
+_cors_origins = [o.strip() for o in settings.cors_allowed_origins.split(",") if o.strip()]
+_cors_is_wildcard = _cors_origins == ["*"]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=_cors_origins,
+    allow_credentials=not _cors_is_wildcard,
     allow_methods=["*"],
     allow_headers=["*"],
 )

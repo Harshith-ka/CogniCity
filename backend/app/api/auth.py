@@ -7,23 +7,29 @@ which stays open exactly as it is today. Nothing here changes how the dashboard 
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.auth.dependencies import SESSION_COOKIE_NAME, get_current_user
 from backend.app.auth.security import create_access_token, hash_password, verify_password
+from backend.app.core.config import settings
 from backend.app.core.database import get_db
 from backend.app.core.plans import PLAN_BY_KEY
+from backend.app.core.rate_limit import limiter
 from backend.app.models.auth import Organization, OrganizationStatus, PlatformUser, UserRole
 from backend.app.services.billing import grant_credits
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
-# httpOnly so JS can't read the token (XSS-safe); secure=False only because local dev
-# runs over plain http — this MUST become True behind real TLS.
-COOKIE_KWARGS = {"httponly": True, "samesite": "lax", "secure": False, "max_age": 60 * 60 * 24}
+# httpOnly so JS can't read the token (XSS-safe); secure follows app_env since local
+# dev runs over plain http (a cookie marked secure would just never get sent there).
+COOKIE_KWARGS = {
+    "httponly": True, "samesite": "lax",
+    "secure": settings.app_env != "development",
+    "max_age": 60 * 60 * 24,
+}
 
 
 class LoginRequest(BaseModel):
@@ -55,7 +61,8 @@ def _to_user_out(user: PlatformUser, org_name: str | None = None, token: str | N
 
 
 @router.post("/login", response_model=UserOut)
-async def login(req: LoginRequest, response: Response, db: AsyncSession = Depends(get_db)):
+@limiter.limit(f"{settings.auth_rate_limit_per_minute}/minute")
+async def login(request: Request, req: LoginRequest, response: Response, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(PlatformUser).where(PlatformUser.email == req.email.lower()))
     user = result.scalar_one_or_none()
     if not user or not user.is_active or not verify_password(req.password, user.hashed_password):
@@ -82,7 +89,8 @@ class SignupRequest(BaseModel):
 
 
 @router.post("/signup", response_model=UserOut)
-async def signup(req: SignupRequest, response: Response, db: AsyncSession = Depends(get_db)):
+@limiter.limit(f"{settings.auth_rate_limit_per_minute}/minute")
+async def signup(request: Request, req: SignupRequest, response: Response, db: AsyncSession = Depends(get_db)):
     """Self-service account creation — no invite needed. Every self-signup lands on
     the free Trial plan (see backend/app/core/plans.py: 3 simulation runs, small
     quota/credits) and becomes org_admin of their own brand-new organization, since

@@ -38,6 +38,8 @@ dependencies = [
     "bcrypt>=4.2.0",
     "python-multipart>=0.0.12",
     "onnxruntime>=1.19.0",
+    "slowapi>=0.1.9",
+    "prometheus-fastapi-instrumentator>=7.0.0",
 ]
 
 [project.optional-dependencies]

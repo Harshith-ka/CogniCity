@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.core.database import get_db
@@ -38,6 +39,79 @@ async def advisor_status():
         "available": llm.is_available,
         "provider": llm.provider,
         "model": llm.model,
+    }
+
+
+@router.get("/scorecard")
+async def advisor_scorecard(db: AsyncSession = Depends(get_db)):
+    """Backs the mobile app's AI Advisor overview card — replaces what used to be a
+    static mock object (healthIndex/economicStability/safetyScore/carbonScore all
+    hardcoded) with real, DB-derived numbers. Each score is an explicit, documented
+    formula over real simulation data, not a fabricated figure:
+
+      healthIndex        = avg citizen health (0-1 scale) as a %
+      economicStability   = 70% weight on employment rate, 30% on avg happiness —
+                             a simple blend since there's no single "economy" field
+      safetyScore         = crime clearance rate, discounted by unsolved case volume
+                             relative to population (more unsolved crime per capita
+                             pulls the score down even if the clearance rate is fine)
+      carbonScore         = inverted air_quality_index (lower AQI = better air = higher
+                             score); "no_data" until the environment module has seeded
+                             at least one EnvironmentState row, same as /environment/stats
+    """
+    from backend.app.analytics.metrics import compute_city_metrics
+    from backend.app.crime.crime_engine import CrimeEngine
+    from backend.app.models.environment import EnvironmentState
+
+    metrics = await compute_city_metrics(db)
+    health_index = round(metrics.avg_health * 100, 1) if metrics.population else 0.0
+    economic_stability = round(
+        (1 - metrics.unemployment_rate) * 70 + metrics.avg_happiness * 30, 1
+    ) if metrics.population else 0.0
+
+    crime_engine = CrimeEngine(db)
+    crime_stats = await crime_engine.get_stats()
+    total_crimes = crime_stats.get("total", 0)
+    unsolved = crime_stats.get("unsolved", 0)
+    if total_crimes == 0:
+        safety_score = 92.0  # no recorded crime yet — optimistic default, not a real signal either way
+    else:
+        clearance_rate = crime_stats.get("solved", 0) / total_crimes
+        unsolved_per_1000_pop = (unsolved / metrics.population * 1000) if metrics.population else 0
+        safety_score = round(max(0.0, min(100.0, clearance_rate * 100 - unsolved_per_1000_pop * 2)), 1)
+
+    env_result = await db.execute(
+        select(EnvironmentState).where(EnvironmentState.is_current.is_(True)).limit(1)
+    )
+    env_state = env_result.scalar_one_or_none()
+    carbon_score = round(max(0.0, min(100.0, 100 - env_state.air_quality_index)), 1) if env_state else None
+
+    advisor = CityAdvisor(db)
+    history = await _get_history(db)
+    analysis = await advisor.analyze_city_state(metrics.model_dump(), history) or {}
+
+    top_issues = analysis.get("top_issues", [])
+    return {
+        "healthIndex": health_index,
+        "economicStability": economic_stability,
+        "safetyScore": safety_score,
+        "carbonScore": carbon_score,  # null until environment module has data
+        "summary": analysis.get("overall_assessment", "No analysis available yet."),
+        "riskLevel": analysis.get("risk_level", "moderate"),
+        "criticalRisks": [i["issue"] for i in top_issues if i.get("severity") in ("high", "critical")],
+        # Every field here comes straight from the grounded analysis above (real
+        # metrics run through either the LLM or the rule-based fallback in
+        # CityAdvisor._rule_based_analysis) — no cost/ROI estimate is invented because
+        # neither path actually produces one.
+        "recommendedPolicies": [
+            {
+                "issue": i.get("issue", ""),
+                "severity": i.get("severity", "medium"),
+                "recommendation": i.get("recommendation", ""),
+                "expectedImpact": i.get("expected_impact", ""),
+            }
+            for i in top_issues
+        ],
     }
 
 
