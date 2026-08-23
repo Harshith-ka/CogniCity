@@ -26,6 +26,7 @@ from backend.app.models.tourism import Hotel, TouristAttraction, TouristVisitor
 from backend.app.models.emergency_services import FireStation
 from backend.app.models.auth import Organization, PlatformUser
 from backend.app.models.usage import UsageRecord
+from backend.app.models.billing import CreditTransaction
 
 __all__ = [
     "Citizen",
@@ -84,4 +85,5 @@ __all__ = [
     "Organization",
     "PlatformUser",
     "UsageRecord",
+    "CreditTransaction",
 ]

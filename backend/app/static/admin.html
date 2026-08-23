@@ -383,6 +383,37 @@
 
         <div class="card" style="margin-bottom:20px;">
           <div class="card-header">
+            <span class="card-title">Billing</span>
+            <select id="billing-plan-select" class="hidden" style="width:auto; padding:6px 10px; font-size:12px;"></select>
+          </div>
+          <div class="grid-2" style="margin-bottom:14px;">
+            <div>
+              <div class="mono-label">Subscription</div>
+              <div style="color:#fff; margin-top:4px;" id="billing-plan-name">—</div>
+              <div class="stat-sub" id="billing-plan-price"></div>
+            </div>
+            <div>
+              <div class="mono-label">Credits Balance</div>
+              <div class="stat-value" id="billing-credits-balance" style="margin-top:4px;">—</div>
+            </div>
+          </div>
+          <div id="billing-grant-form" class="hidden" style="display:flex; gap:8px; align-items:flex-end; margin-bottom:14px; flex-wrap:wrap;">
+            <div class="field" style="margin-bottom:0; flex:0 0 120px;">
+              <label>Grant Credits</label>
+              <input type="number" id="billing-grant-amount" min="1" placeholder="e.g. 1000">
+            </div>
+            <div class="field" style="margin-bottom:0; flex:1 1 200px;">
+              <label>Reason</label>
+              <input type="text" id="billing-grant-desc" placeholder="Manual top-up">
+            </div>
+            <button class="btn btn-primary" id="btn-grant-credits" style="padding:9px 16px;">Grant</button>
+          </div>
+          <div class="mono-label" style="margin-bottom:8px;">Recent Transactions</div>
+          <div id="billing-transactions" style="display:flex; flex-direction:column; gap:6px;"></div>
+        </div>
+
+        <div class="card" style="margin-bottom:20px;">
+          <div class="card-header">
             <span class="card-title">Environment Access</span>
             <button class="btn btn-primary hidden" id="btn-save-env-access" style="padding:7px 14px;">Save Access</button>
           </div>
@@ -427,12 +458,7 @@
         <div class="field"><label>Organization Name</label><input type="text" id="new-org-name" required placeholder="Acme Municipal Corp"></div>
         <div class="field">
           <label>Plan</label>
-          <select id="new-org-plan">
-            <option value="basic">Basic — 1,000 agents</option>
-            <option value="pro">Pro — 10,000 agents</option>
-            <option value="enterprise">Enterprise — 100,000+ agents</option>
-            <option value="research">Research — custom</option>
-          </select>
+          <select id="new-org-plan"></select>
         </div>
         <div class="field"><label>Agent Quota</label><input type="number" id="new-org-quota" value="1000" min="1" required></div>
         <div class="field">
@@ -491,6 +517,7 @@
     let currentOrgId = null; // org currently shown in the detail view
     let environmentCatalog = []; // Twin Platform environment manifests, fetched once
     let featureModuleCatalog = []; // city-simulation feature modules ("tabs"), fetched once
+    let planCatalog = []; // subscription plan catalog (Phase 3), fetched once
 
     async function api(path, opts = {}) {
       const res = await fetch(API + path, {
@@ -544,6 +571,68 @@
         featureModuleCatalog = [];
       }
       return featureModuleCatalog;
+    }
+
+    async function loadPlanCatalog() {
+      if (planCatalog.length) return planCatalog;
+      try {
+        planCatalog = await api('/api/admin/plans');
+      } catch (err) {
+        planCatalog = [];
+      }
+      return planCatalog;
+    }
+
+    function formatInr(amount) {
+      return amount == null ? 'Custom pricing' : `₹${amount.toLocaleString()}/mo`;
+    }
+
+    function populatePlanSelect(selectEl, selectedKey) {
+      selectEl.innerHTML = planCatalog.map(p => `
+        <option value="${p.key}" ${p.key === selectedKey ? 'selected' : ''}>${p.name} — ${formatInr(p.monthly_price_inr)}, ${p.agent_quota.toLocaleString()} agents</option>
+      `).join('');
+    }
+
+    function renderBillingSection(org, billing, isSuperAdmin) {
+      const planSelect = document.getElementById('billing-plan-select');
+      const planNameEl = document.getElementById('billing-plan-name');
+      const planPriceEl = document.getElementById('billing-plan-price');
+
+      if (isSuperAdmin) {
+        populatePlanSelect(planSelect, org.plan_key);
+        planSelect.classList.remove('hidden');
+        planNameEl.classList.add('hidden');
+        planPriceEl.textContent = '';
+      } else {
+        planSelect.classList.add('hidden');
+        planNameEl.classList.remove('hidden');
+        planNameEl.textContent = billing.plan ? billing.plan.name : org.plan_key;
+        planPriceEl.textContent = billing.plan ? `${formatInr(billing.plan.monthly_price_inr)} · ${billing.plan.included_credits.toLocaleString()} credits included` : '';
+      }
+
+      document.getElementById('billing-credits-balance').textContent = Math.round(billing.credits_balance).toLocaleString();
+
+      document.getElementById('billing-grant-form').classList.toggle('hidden', !isSuperAdmin);
+
+      const txContainer = document.getElementById('billing-transactions');
+      if (!billing.recent_transactions.length) {
+        txContainer.innerHTML = `<div class="loading-line" style="padding:10px 0;">No transactions yet.</div>`;
+      } else {
+        txContainer.innerHTML = billing.recent_transactions.map(t => {
+          const sign = t.amount > 0 ? '+' : '';
+          const color = t.amount > 0 ? 'var(--green-nominal)' : 'var(--text-primary)';
+          const when = new Date(t.created_at).toLocaleString();
+          return `
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 10px; background:var(--bg-surface); border:1px solid var(--border-dim); border-radius:4px; font-size:12px;">
+              <div>
+                <div style="color:#fff;">${t.description}</div>
+                <div class="stat-sub">${when} · balance ${Math.round(t.balance_after).toLocaleString()}</div>
+              </div>
+              <div style="color:${color}; font-weight:700; font-family:'JetBrains Mono', monospace;">${sign}${Math.round(t.amount).toLocaleString()}</div>
+            </div>
+          `;
+        }).join('');
+      }
     }
 
     // catalog entries need { key, icon, name|label } — environments use "name",
@@ -623,9 +712,10 @@
       document.getElementById('back-to-orgs').classList.toggle('hidden', session.role !== 'super_admin');
 
       try {
-        const [org, usage] = await Promise.all([
+        const [org, usage, billing] = await Promise.all([
           api(`/api/admin/organizations/${orgId}`),
           api(`/api/admin/organizations/${orgId}/usage`),
+          api(`/api/admin/organizations/${orgId}/billing`),
         ]);
 
         document.getElementById('org-detail-title').textContent = org.name;
@@ -648,9 +738,12 @@
         document.getElementById('quota-label').textContent = `Agent Quota — ${org.agent_quota.toLocaleString()} max per run`;
         document.getElementById('quota-bar-fill').style.width = pct + '%';
 
+        const isSuperAdmin = session.role === 'super_admin';
+        await loadPlanCatalog();
+        renderBillingSection(org, billing, isSuperAdmin);
+
         await loadEnvironmentCatalog();
         await loadFeatureModuleCatalog();
-        const isSuperAdmin = session.role === 'super_admin';
 
         renderChipList('env-access-list', environmentCatalog, org.allowed_environments, isSuperAdmin);
         document.getElementById('btn-save-env-access').classList.toggle('hidden', !isSuperAdmin);
@@ -703,10 +796,20 @@
       btn.addEventListener('click', () => btn.closest('.modal-backdrop').classList.add('hidden'));
     });
 
+    document.getElementById('new-org-plan').addEventListener('change', (e) => {
+      const plan = planCatalog.find(p => p.key === e.target.value);
+      if (plan) {
+        document.getElementById('new-org-quota').value = plan.agent_quota;
+        document.getElementById('new-org-tier').value = plan.model_tier;
+      }
+    });
+
     document.getElementById('btn-new-org').addEventListener('click', async () => {
-      await Promise.all([loadEnvironmentCatalog(), loadFeatureModuleCatalog()]);
+      await Promise.all([loadEnvironmentCatalog(), loadFeatureModuleCatalog(), loadPlanCatalog()]);
       renderChipList('new-org-env-list', environmentCatalog, [], true);
       renderChipList('new-org-module-list', featureModuleCatalog, [], true);
+      populatePlanSelect(document.getElementById('new-org-plan'), planCatalog[0]?.key);
+      if (planCatalog[0]) document.getElementById('new-org-quota').value = planCatalog[0].agent_quota;
       openModal('modal-new-org');
     });
 
@@ -735,6 +838,49 @@
           body: JSON.stringify({ allowed_modules: readCheckedEnvKeys('module-access-list') }),
         });
         showToast('Feature module access updated');
+      } catch (err) {
+        showToast(err.message, true);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    document.getElementById('billing-plan-select').addEventListener('change', async (e) => {
+      const select = e.target;
+      select.disabled = true;
+      try {
+        await api(`/api/admin/organizations/${currentOrgId}/plan`, {
+          method: 'PUT',
+          body: JSON.stringify({ plan_key: select.value }),
+        });
+        showToast('Plan updated');
+        await loadOrgDetail(currentOrgId);
+      } catch (err) {
+        showToast(err.message, true);
+      } finally {
+        select.disabled = false;
+      }
+    });
+
+    document.getElementById('btn-grant-credits').addEventListener('click', async () => {
+      const amountInput = document.getElementById('billing-grant-amount');
+      const descInput = document.getElementById('billing-grant-desc');
+      const amount = parseFloat(amountInput.value);
+      if (!amount || amount <= 0) {
+        showToast('Enter a positive credit amount', true);
+        return;
+      }
+      const btn = document.getElementById('btn-grant-credits');
+      btn.disabled = true;
+      try {
+        await api(`/api/admin/organizations/${currentOrgId}/credits`, {
+          method: 'POST',
+          body: JSON.stringify({ amount, description: descInput.value || 'Manual credit grant' }),
+        });
+        showToast(`Granted ${amount.toLocaleString()} credits`);
+        amountInput.value = '';
+        descInput.value = '';
+        await loadOrgDetail(currentOrgId);
       } catch (err) {
         showToast(err.message, true);
       } finally {

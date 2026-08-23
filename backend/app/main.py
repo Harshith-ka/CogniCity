@@ -67,6 +67,9 @@ async def lifespan(app: FastAPI):
         await conn.execute(text(
             "ALTER TABLE organizations ADD COLUMN IF NOT EXISTS allowed_modules JSON DEFAULT '[]'"
         ))
+        await conn.execute(text(
+            "ALTER TABLE organizations ADD COLUMN IF NOT EXISTS credits_balance DOUBLE PRECISION DEFAULT 0.0"
+        ))
 
     async with async_session() as db:
         from sqlalchemy import select

@@ -19,7 +19,9 @@ from backend.app.auth.dependencies import get_current_user, require_org_access, 
 from backend.app.auth.security import hash_password
 from backend.app.core.database import get_db
 from backend.app.core.feature_modules import FEATURE_MODULES
+from backend.app.core.plans import PLANS
 from backend.app.models.auth import Organization, OrganizationStatus, PlatformUser, UserRole
+from backend.app.services.billing import grant_credits, get_billing_summary
 from backend.app.services.usage_metering import get_usage_summary
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
@@ -30,6 +32,13 @@ async def list_feature_modules():
     """The catalog the admin UI renders as checkboxes — same public-catalog pattern
     as GET /api/twin-platform/environments."""
     return FEATURE_MODULES
+
+
+@router.get("/plans")
+async def list_plans():
+    """Subscription plan catalog (Phase 3) — same public-catalog pattern as
+    feature-modules and the Twin Platform's environment list."""
+    return PLANS
 
 
 # ─────────────────────────────────────────────────────────────
@@ -54,6 +63,7 @@ class OrgOut(BaseModel):
     model_tier: str
     allowed_environments: list[str] = []
     allowed_modules: list[str] = []
+    credits_balance: float = 0.0
     user_count: int = 0
 
 
@@ -62,7 +72,8 @@ def _to_org_out(org: Organization, user_count: int = 0) -> OrgOut:
         id=str(org.id), name=org.name, status=org.status.value, plan_key=org.plan_key,
         agent_quota=org.agent_quota, model_tier=org.model_tier,
         allowed_environments=org.allowed_environments or [],
-        allowed_modules=org.allowed_modules or [], user_count=user_count,
+        allowed_modules=org.allowed_modules or [], credits_balance=org.credits_balance,
+        user_count=user_count,
     )
 
 
@@ -175,6 +186,74 @@ async def get_organization_usage(
         "agent_quota": org.agent_quota,
         "usage": await get_usage_summary(db, org_id),
     }
+
+
+class OrgPlanUpdateRequest(BaseModel):
+    plan_key: str
+
+
+@router.put("/organizations/{org_id}/plan", response_model=OrgOut)
+async def set_organization_plan(
+    org_id: uuid.UUID,
+    req: OrgPlanUpdateRequest,
+    db: AsyncSession = Depends(get_db),
+    _admin: PlatformUser = Depends(require_roles(UserRole.SUPER_ADMIN)),
+):
+    from backend.app.core.plans import PLAN_BY_KEY
+
+    plan = PLAN_BY_KEY.get(req.plan_key)
+    if not plan:
+        raise HTTPException(status_code=400, detail=f"Unknown plan key {req.plan_key!r}")
+
+    org = await db.get(Organization, org_id)
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+
+    org.plan_key = plan["key"]
+    org.agent_quota = plan["agent_quota"]
+    org.model_tier = plan["model_tier"]
+    await db.commit()
+    await db.refresh(org)
+    count_result = await db.execute(select(PlatformUser).where(PlatformUser.organization_id == org.id))
+    return _to_org_out(org, len(list(count_result.scalars().all())))
+
+
+@router.get("/organizations/{org_id}/billing")
+async def get_organization_billing(
+    org_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    _user: PlatformUser = Depends(require_org_access),
+):
+    org = await db.get(Organization, org_id)
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    return await get_billing_summary(db, org)
+
+
+class GrantCreditsRequest(BaseModel):
+    amount: float
+    description: str = "Manual credit grant"
+
+
+@router.post("/organizations/{org_id}/credits", response_model=OrgOut)
+async def grant_organization_credits(
+    org_id: uuid.UUID,
+    req: GrantCreditsRequest,
+    db: AsyncSession = Depends(get_db),
+    # There's no real payment gateway behind this — this IS the "purchase" action,
+    # a manual top-up a super_admin performs on an org's behalf. Same reasoning as
+    # entitlements: a billing-tier action, not something an org grants itself.
+    _admin: PlatformUser = Depends(require_roles(UserRole.SUPER_ADMIN)),
+):
+    if req.amount <= 0:
+        raise HTTPException(status_code=400, detail="Grant amount must be positive")
+    org = await db.get(Organization, org_id)
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+
+    org = await grant_credits(db, org, req.amount, req.description)
+    count_result = await db.execute(select(PlatformUser).where(PlatformUser.organization_id == org.id))
+    return _to_org_out(org, len(list(count_result.scalars().all())))
 
 
 # ─────────────────────────────────────────────────────────────

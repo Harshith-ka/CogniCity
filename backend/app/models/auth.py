@@ -10,7 +10,7 @@ import uuid
 from datetime import datetime
 from enum import StrEnum
 
-from sqlalchemy import String, DateTime, Boolean, Enum, ForeignKey, Integer, JSON
+from sqlalchemy import String, DateTime, Boolean, Enum, ForeignKey, Integer, JSON, Float
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
@@ -37,11 +37,20 @@ class Organization(Base):
     name: Mapped[str] = mapped_column(String(200), unique=True)
     status: Mapped[OrganizationStatus] = mapped_column(Enum(OrganizationStatus), default=OrganizationStatus.TRIAL)
 
-    # Plan enforcement fields — a real Plan table with billing comes in a later phase;
-    # for Phase 1 (auth + isolation) these plain fields are enough to prove the model.
+    # Plan enforcement fields. plan_key should match a key in
+    # backend/app/core/plans.py's PLANS catalog (Phase 3) — kept as a plain string
+    # rather than a foreign key so a plan-less/custom org never becomes an invalid
+    # row; look up PLAN_BY_KEY.get(plan_key) rather than assuming it always resolves.
     plan_key: Mapped[str] = mapped_column(String(50), default="basic")  # basic|pro|enterprise|research
     agent_quota: Mapped[int] = mapped_column(Integer, default=1000)
     model_tier: Mapped[str] = mapped_column(String(20), default="simplified")  # simplified|advanced
+
+    # Simulated credits ledger (Phase 3) — no real payment gateway behind this.
+    # Granted manually by a super_admin, consumed automatically by real Twin
+    # Platform usage. See backend/app/services/billing.py for all read/write access;
+    # nothing else should mutate this column directly, so the CreditTransaction
+    # ledger in backend/app/models/billing.py stays the source of truth for "why".
+    credits_balance: Mapped[float] = mapped_column(Float, default=0.0)
 
     # Which Twin Platform environment keys (from EnvironmentRegistry — "city",
     # "hospital_ward", etc.) this org may run. An EMPTY list means unrestricted — this

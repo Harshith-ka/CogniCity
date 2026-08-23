@@ -13,6 +13,7 @@ from backend.app.core.database import get_db
 from backend.app.models.auth import PlatformUser
 from backend.app.models.usage import UsageMetricType
 from backend.app.services.usage_metering import QuotaExceededError, check_agent_quota, record_usage
+from backend.app.services.billing import InsufficientCreditsError, check_credit_balance, consume_credits
 from backend.app.twin_platform.registry import EnvironmentRegistry
 
 router = APIRouter(prefix="/api/twin-platform", tags=["twin_platform"])
@@ -24,6 +25,13 @@ router = APIRouter(prefix="/api/twin-platform", tags=["twin_platform"])
 # careless request hang the endpoint.
 MAX_TICKS_LIVE_CITY = 2
 MAX_TICKS_SANDBOX = 200
+
+# Simulated pricing (Phase 3) — 1 credit per agent-tick of real work, plus a flat
+# per-run fee representing compute overhead. Deliberately simple and directly
+# traceable to the same agent_ticks/api_request numbers Phase 2 already records —
+# not a separate fabricated pricing model.
+CREDITS_PER_AGENT_TICK = 1.0
+CREDITS_PER_RUN = 5.0
 
 
 @router.get("/environments")
@@ -84,6 +92,12 @@ async def run_environment(
                 except QuotaExceededError as err:
                     raise HTTPException(status_code=402, detail=str(err))
 
+            estimated_cost = CREDITS_PER_RUN + CREDITS_PER_AGENT_TICK * req.initial_agents * min(req.ticks, MAX_TICKS_LIVE_CITY if key == "city" else MAX_TICKS_SANDBOX)
+            try:
+                check_credit_balance(org, estimated_cost)
+            except InsufficientCreditsError as err:
+                raise HTTPException(status_code=402, detail=f"Insufficient credits: {err}")
+
     max_ticks = MAX_TICKS_LIVE_CITY if key == "city" else MAX_TICKS_SANDBOX
     ticks = min(req.ticks, max_ticks)
 
@@ -108,11 +122,17 @@ async def run_environment(
         await record_usage(
             db, org.id, UsageMetricType.API_REQUEST, quantity=1, environment_key=key,
         )
-        if req.initial_agents:
+        agent_ticks_used = req.initial_agents * ticks if req.initial_agents else 0
+        if agent_ticks_used:
             await record_usage(
                 db, org.id, UsageMetricType.AGENT_TICKS,
-                quantity=req.initial_agents * ticks, environment_key=key,
+                quantity=agent_ticks_used, environment_key=key,
             )
+        actual_cost = CREDITS_PER_RUN + CREDITS_PER_AGENT_TICK * agent_ticks_used
+        await consume_credits(
+            db, org, actual_cost,
+            description=f"{manifest.name} run — {ticks} ticks" + (f", {req.initial_agents} agents" if req.initial_agents else ""),
+        )
 
     return {
         "environment": key,
