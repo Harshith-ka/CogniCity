@@ -233,41 +233,92 @@ def api_post(path: str, data: dict | None = None):
 # the rest of the script never runs (st.stop() below).
 # ══════════════════════════════════════════════════════════════════════
 def _render_login_screen():
+    mode = st.session_state.get("dashboard_auth_mode", "login")
     st.markdown(
         '<div style="max-width:420px;margin:10vh auto 0;text-align:center;">'
         '<div style="font-size:2rem;">🏙️</div>'
         '<h2 style="margin:0.3rem 0;">AI Digital Twin City</h2>'
-        '<p style="color:#94a3b8;font-size:0.85rem;">Sign in with your platform account to open the dashboard.</p>'
-        '</div>',
+        f'<p style="color:#94a3b8;font-size:0.85rem;">'
+        + ('Sign in with your platform account to open the dashboard.' if mode == "login"
+           else 'Create a new organization — starts on the Free Trial plan.')
+        + '</p></div>',
         unsafe_allow_html=True,
     )
     _, col, _ = st.columns([1, 1.2, 1])
     with col:
-        with st.form("dashboard_login_form"):
-            email = st.text_input("Email")
-            password = st.text_input("Password", type="password")
-            submitted = st.form_submit_button("Sign In", use_container_width=True)
+        if mode == "login":
+            with st.form("dashboard_login_form"):
+                email = st.text_input("Email")
+                password = st.text_input("Password", type="password")
+                submitted = st.form_submit_button("Sign In", use_container_width=True)
 
-        if submitted:
-            if not email or not password:
-                st.error("Enter both email and password.")
-            else:
-                try:
-                    resp = httpx.post(
-                        f"{API_BASE}/api/auth/login",
-                        json={"email": email, "password": password},
-                        timeout=10,
-                    )
-                except Exception:
-                    st.error(f"Can't reach the backend at {API_BASE}.")
+            if submitted:
+                if not email or not password:
+                    st.error("Enter both email and password.")
                 else:
-                    if resp.status_code == 200:
-                        user = resp.json()
-                        st.session_state.auth_token = user.get("token")
-                        st.session_state.current_user = user
-                        st.rerun()
+                    try:
+                        resp = httpx.post(
+                            f"{API_BASE}/api/auth/login",
+                            json={"email": email, "password": password},
+                            timeout=10,
+                        )
+                    except Exception:
+                        st.error(f"Can't reach the backend at {API_BASE}.")
                     else:
-                        st.error("Incorrect email or password.")
+                        if resp.status_code == 200:
+                            user = resp.json()
+                            st.session_state.auth_token = user.get("token")
+                            st.session_state.current_user = user
+                            st.rerun()
+                        else:
+                            st.error("Incorrect email or password.")
+
+            st.markdown(
+                '<p style="text-align:center;font-size:0.8rem;color:#64748b;margin-top:0.75rem;">'
+                'New here? </p>',
+                unsafe_allow_html=True,
+            )
+            if st.button("Create a new organization", use_container_width=True, key="show_signup_btn"):
+                st.session_state.dashboard_auth_mode = "signup"
+                st.rerun()
+        else:
+            with st.form("dashboard_signup_form"):
+                org_name = st.text_input("Organization Name", placeholder="Acme Research Lab")
+                name = st.text_input("Your Name", placeholder="Jane Doe")
+                email = st.text_input("Email")
+                password = st.text_input("Password", type="password", help="Minimum 8 characters")
+                submitted = st.form_submit_button("Create Account", use_container_width=True)
+
+            if submitted:
+                if not org_name or not name or not email or len(password) < 8:
+                    st.error("Fill in every field — password needs at least 8 characters.")
+                else:
+                    try:
+                        resp = httpx.post(
+                            f"{API_BASE}/api/auth/signup",
+                            json={
+                                "organization_name": org_name,
+                                "name": name,
+                                "email": email,
+                                "password": password,
+                            },
+                            timeout=10,
+                        )
+                    except Exception:
+                        st.error(f"Can't reach the backend at {API_BASE}.")
+                    else:
+                        if resp.status_code == 200:
+                            user = resp.json()
+                            st.session_state.auth_token = user.get("token")
+                            st.session_state.current_user = user
+                            st.rerun()
+                        else:
+                            detail = resp.json().get("detail", "Signup failed.") if resp.headers.get("content-type", "").startswith("application/json") else "Signup failed."
+                            st.error(detail if isinstance(detail, str) else "Signup failed.")
+
+            if st.button("Already have an account? Sign in", use_container_width=True, key="show_login_btn"):
+                st.session_state.dashboard_auth_mode = "login"
+                st.rerun()
 
 
 if "current_user" not in st.session_state:
