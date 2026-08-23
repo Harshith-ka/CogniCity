@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: ["main", "master", "test-branch"]
+  pull_request:
+    branches: ["main", "master", "test-branch"]
+
+jobs:
+  backend:
+    name: Backend (lint + tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install backend
+        run: pip install -e ".[dev]"
+
+      # Informational only — the codebase predates this workflow and hasn't been
+      # brought fully clean yet, so lint findings are surfaced but don't block merges.
+      - name: Ruff lint
+        run: ruff check backend/ --exit-zero
+
+      - name: mypy
+        run: mypy backend/app --exit-zero
+
+      # tests/ is pure unit tests (no live Postgres/Redis/Neo4j needed — see
+      # PopulationSampler(db=None) in test_agent_eval.py), so no service containers.
+      - name: pytest
+        run: pytest tests/ -v
+
+  mobile:
+    name: Mobile app (typecheck)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile_app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: mobile_app/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript typecheck
+        run: npx tsc --noEmit
