@@ -13,6 +13,7 @@ class AgentProtocol(StrEnum):
     REST_WEBHOOK = "rest_webhook"
     OPENAI_CHAT = "openai_chat"
     MOCK_BENCHMARK = "mock_benchmark"
+    UPLOADED_MODEL = "uploaded_model"  # a real .onnx file, run locally — see model_store.py
 
 
 class InteractionMode(StrEnum):
@@ -57,6 +58,7 @@ class AgentTestRequest(BaseModel):
     protocol: AgentProtocol = AgentProtocol.MOCK_BENCHMARK
     endpoint_url: str | None = None
     api_key: str | None = None
+    model_id: str | None = None  # set when protocol == UPLOADED_MODEL, from POST /upload-model
     interaction_mode: InteractionMode = InteractionMode.ONE_SHOT
     prompt_template: str | None = None
     cohort_distribution: CohortDistribution = CohortDistribution.BALANCED_GENERAL

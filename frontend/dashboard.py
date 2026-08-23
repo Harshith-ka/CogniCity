@@ -1086,9 +1086,10 @@ if "sandbox" in tabs:
 
             protocol = st.selectbox(
                 "Connection Protocol",
-                ["mock_benchmark", "rest_webhook", "openai_chat"],
+                ["mock_benchmark", "uploaded_model", "rest_webhook", "openai_chat"],
                 format_func=lambda x: {
                     "mock_benchmark": "⚡ Built-in Correlated Benchmark Simulator (Demo)",
+                    "uploaded_model": "📁 Upload Your Own Model (.onnx)",
                     "rest_webhook": "🌐 REST API Webhook (POST /predict)",
                     "openai_chat": "🤖 OpenAI / LLM Chat Completion Endpoint",
                 }[x],
@@ -1097,6 +1098,44 @@ if "sandbox" in tabs:
             endpoint_url = None
             api_key = None
             prompt_tmpl = None
+            uploaded_model_id = st.session_state.get("sandbox_model_id")
+
+            if protocol == "uploaded_model":
+                st.caption(
+                    "ONNX only, not pickle/joblib — loading an arbitrary `.pkl` file can execute "
+                    "code embedded in it. ONNX is a static computation graph; running it can't. "
+                    "Your model must accept a single float32 tensor of shape `[1, 8]`, in this exact "
+                    "order: `age, annual_income, savings, monthly_expenses, credit_score_estimate, "
+                    "health_index, stress_level, happiness`."
+                )
+                model_file = st.file_uploader("Model File", type=["onnx"], key="sandbox_model_uploader")
+                if model_file is not None and st.session_state.get("sandbox_model_filename") != model_file.name:
+                    with st.spinner(f"Validating {model_file.name}…"):
+                        try:
+                            resp = httpx.post(
+                                f"{API_BASE}/api/eval/upload-model",
+                                files={"file": (model_file.name, model_file.getvalue(), "application/octet-stream")},
+                                headers=_auth_headers(),
+                                timeout=30,
+                            )
+                            resp.raise_for_status()
+                            meta = resp.json()
+                            st.session_state["sandbox_model_id"] = meta["model_id"]
+                            st.session_state["sandbox_model_filename"] = model_file.name
+                            st.session_state["sandbox_model_meta"] = meta
+                            uploaded_model_id = meta["model_id"]
+                        except Exception as err:
+                            st.session_state.pop("sandbox_model_id", None)
+                            st.error(f"Model rejected: {err}")
+                meta = st.session_state.get("sandbox_model_meta")
+                if uploaded_model_id and meta:
+                    st.success(
+                        f"✓ {st.session_state.get('sandbox_model_filename')} loaded — "
+                        f"input `{meta['input_name']}` shape `{meta['input_shape']}`, "
+                        f"outputs `{', '.join(meta['output_names'])}`"
+                    )
+                elif not uploaded_model_id:
+                    st.warning("Upload a model file before running the evaluation.")
 
             if protocol == "rest_webhook":
                 endpoint_url = st.text_input("Webhook Endpoint URL", value="http://host.docker.internal:9000/predict")
@@ -1161,7 +1200,11 @@ if "sandbox" in tabs:
             st.info("🧠 **Causal Bayesian Generator**: All features are generated using multi-layer joint distributions preserving cross-variable physiology and financial correlations.")
 
         st.write("")
-        if st.button("🚀 Run Agent Behavioral Evaluation & Drift Simulation", use_container_width=True, type="primary"):
+        run_blocked = protocol == "uploaded_model" and not uploaded_model_id
+        if st.button(
+            "🚀 Run Agent Behavioral Evaluation & Drift Simulation",
+            use_container_width=True, type="primary", disabled=run_blocked,
+        ):
             with st.spinner(f"Synthesizing {sample_size:,} correlated humans ({domain_preset}) and evaluating agent '{agent_name}'..."):
                 req_payload = {
                     "agent_name": agent_name,
@@ -1169,6 +1212,7 @@ if "sandbox" in tabs:
                     "protocol": protocol,
                     "endpoint_url": endpoint_url,
                     "api_key": api_key,
+                    "model_id": uploaded_model_id if protocol == "uploaded_model" else None,
                     "interaction_mode": interaction_mode,
                     "prompt_template": prompt_tmpl,
                     "cohort_distribution": cohort,

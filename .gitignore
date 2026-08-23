@@ -20,3 +20,4 @@ htmlcov/
 .vscode/
 *.log
 data/uploads/
+backend/app/agent_eval/uploaded_models/

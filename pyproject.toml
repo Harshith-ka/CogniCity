@@ -36,6 +36,8 @@ dependencies = [
     "plotly>=5.24.0",
     "pyjwt>=2.9.0",
     "bcrypt>=4.2.0",
+    "python-multipart>=0.0.12",
+    "onnxruntime>=1.19.0",
 ]
 
 [project.optional-dependencies]

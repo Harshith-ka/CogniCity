@@ -12,6 +12,7 @@ from backend.app.agent_eval.models import (
     AgentTestRequest,
     CitizenProfileDTO,
 )
+from backend.app.agent_eval import model_store
 
 
 class UniversalAgentClient:
@@ -44,8 +45,20 @@ class UniversalAgentClient:
             return await self._call_rest_webhook(c)
         elif self.request.protocol == AgentProtocol.OPENAI_CHAT and self.request.endpoint_url:
             return await self._call_openai_chat(c)
+        elif self.request.protocol == AgentProtocol.UPLOADED_MODEL and self.request.model_id:
+            return await self._call_uploaded_model(c)
         else:
             return await self._call_mock_benchmark(c)
+
+    async def _call_uploaded_model(
+        self,
+        c: CitizenProfileDTO,
+    ) -> tuple[CitizenProfileDTO, dict[str, Any]]:
+        # onnxruntime's session.run() is synchronous CPU-bound work — run it in a
+        # thread so one slow model doesn't block the event loop for every other
+        # concurrent evaluation batch (evaluate_batch already gathers 50 at a time).
+        result = await asyncio.to_thread(model_store.run_inference, self.request.model_id, c)
+        return c, result
 
     async def _call_rest_webhook(
         self,

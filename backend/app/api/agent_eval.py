@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.core.database import get_db
@@ -15,8 +15,23 @@ from backend.app.agent_eval.eval_engine import AgentEvaluationEngine
 from backend.app.agent_eval.population_sampler import PopulationSampler
 from backend.app.agent_eval.schema_resolver import DOMAIN_PRESETS, DomainPreset, DynamicSchemaConfig
 from backend.app.agent_eval.correlated_generator import CorrelatedPopulationGenerator
+from backend.app.agent_eval import model_store
 
 router = APIRouter(prefix="/api/eval", tags=["agent-evaluation"])
+
+
+@router.post("/upload-model")
+async def upload_model_file(file: UploadFile = File(...)):
+    """Accepts a real .onnx model file for local inference in the sandbox — see
+    model_store.py for why ONNX specifically (not pickle/joblib) and the fixed
+    8-feature input contract the model must accept."""
+    if not file.filename or not file.filename.lower().endswith(".onnx"):
+        raise HTTPException(status_code=400, detail="Only .onnx files are accepted")
+    contents = await file.read()
+    try:
+        return model_store.upload_model(contents, file.filename)
+    except model_store.InvalidModelError as err:
+        raise HTTPException(status_code=400, detail=str(err))
 
 
 @router.post("/run-test", response_model=EvaluationScorecard)

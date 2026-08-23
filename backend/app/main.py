@@ -230,7 +230,13 @@ async def city_3d_view():
 
 @app.get("/dashboard")
 async def dashboard_view():
-    return FileResponse(STATIC_DIR / "dashboard.html")
+    # Same no-cache reasoning as /city3d below — this was the one static view still
+    # missing it, which is exactly why an edit to dashboard.html stopped showing up
+    # in the browser without a hard refresh.
+    return FileResponse(
+        STATIC_DIR / "dashboard.html",
+        headers={"Cache-Control": "no-store, no-cache, must-revalidate", "Pragma": "no-cache"},
+    )
 
 
 @app.get("/admin")
